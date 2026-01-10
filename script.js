@@ -7,7 +7,7 @@ const CONFIG = {
     APPS_SCRIPT_URL: localStorage.getItem('zeta_script_url') || '',
     SYNC_INTERVAL: 30000, // 30 detik
     MAX_RETRIES: 3,
-    VERSION: '3.0'
+    VERSION: '3.0' 
 };
 
 // ===== STATE =====
@@ -788,4 +788,122 @@ function onStateUpdate(newState) {
     // Update display based on state changes
     updateQueueDisplay();
     updateRealTimeDisplay();
+}
+async function saveToGoogleSheets(transactionData) {
+    console.log("📤 Attempting to save to Google Sheets...");
+    
+    if (!CONFIG.APPS_SCRIPT_URL) {
+        console.error("❌ No Apps Script URL configured");
+        return false;
+    }
+    
+    // Ensure data has required fields
+    const dataToSend = {
+        ...transactionData,
+        timestamp: new Date().toISOString(),
+        transaction_id: transactionData.transaction_id || 'T' + Date.now() + Math.random().toString(36).substr(2, 9)
+    };
+    
+    console.log("📦 Data to send:", dataToSend);
+    
+    // 🔥 TRY MULTIPLE METHODS
+    
+    // METHOD 1: Standard POST with JSON
+    try {
+        console.log("🔄 Trying METHOD 1: Standard POST...");
+        
+        const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(dataToSend),
+            mode: 'cors'
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            console.log("✅ METHOD 1 Success:", result);
+            return true;
+        }
+    } catch (error) {
+        console.log("⚠️ METHOD 1 Failed:", error.message);
+    }
+    
+    // METHOD 2: POST with FormData
+    try {
+        console.log("🔄 Trying METHOD 2: FormData...");
+        
+        const formData = new FormData();
+        formData.append('json', JSON.stringify(dataToSend));
+        
+        const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        console.log("✅ METHOD 2 Success:", result);
+        return true;
+    } catch (error) {
+        console.log("⚠️ METHOD 2 Failed:", error.message);
+    }
+    
+    // METHOD 3: GET with URL parameters
+    try {
+        console.log("🔄 Trying METHOD 3: GET with URL params...");
+        
+        const params = new URLSearchParams();
+        params.append('data', JSON.stringify(dataToSend));
+        
+        const url = `${CONFIG.APPS_SCRIPT_URL}?${params.toString()}&_=${Date.now()}`;
+        const response = await fetch(url);
+        
+        const result = await response.json();
+        console.log("✅ METHOD 3 Success:", result);
+        return true;
+    } catch (error) {
+        console.log("⚠️ METHOD 3 Failed:", error.message);
+    }
+    
+    // METHOD 4: Using iframe (brutal but works)
+    try {
+        console.log("🔄 Trying METHOD 4: Iframe fallback...");
+        
+        return new Promise((resolve) => {
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            
+            const encodedData = encodeURIComponent(JSON.stringify(dataToSend));
+            iframe.src = `${CONFIG.APPS_SCRIPT_URL}?data=${encodedData}&method=iframe&t=${Date.now()}`;
+            
+            iframe.onload = function() {
+                console.log("✅ METHOD 4 Success (iframe)");
+                document.body.removeChild(iframe);
+                resolve(true);
+            };
+            
+            iframe.onerror = function() {
+                console.log("❌ METHOD 4 Failed (iframe)");
+                document.body.removeChild(iframe);
+                resolve(false);
+            };
+            
+            document.body.appendChild(iframe);
+            
+            // Timeout after 5 seconds
+            setTimeout(() => {
+                if (document.body.contains(iframe)) {
+                    document.body.removeChild(iframe);
+                }
+                console.log("⏰ METHOD 4 Timeout");
+                resolve(false);
+            }, 5000);
+        });
+        
+    } catch (error) {
+        console.error("❌ All methods failed:", error);
+        return false;
+    }
 }
