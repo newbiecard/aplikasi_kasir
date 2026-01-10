@@ -1,5 +1,5 @@
 // Konfigurasi - GANTI URL INI DENGAN URL APPS SCRIPT ANDA
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/1GazJsbJudTwm1xmAeHGCZvtFZ7cRFuwGR76a6m-va2k/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyKGKoDIufiwjmK34qY20HZEEO-9wlVcDurm-F3Jnx0F4x_IfdtoxXoPyatGvSyae4n/exec";
 
 // Data menu
 const menuItems = {
