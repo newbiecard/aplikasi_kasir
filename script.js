@@ -1,831 +1,791 @@
 // ============================================
-// ZETA POS v2.0 - FINAL VERSION
-// Sistem Kasir Brutal dengan Google Sheets Sync
+// ZETA POS v3.0 - REAL-TIME SYNC EDITION
 // ============================================
 
 // ===== CONFIGURASI =====
 const CONFIG = {
     APPS_SCRIPT_URL: localStorage.getItem('zeta_script_url') || '',
-    SPREADSHEET_ID: localStorage.getItem('zeta_sheet_id') || '',
-    VERSION: '2.0',
-    BACKUP_KEY: 'zeta_pos_backups_v2',
-    TRANSACTION_KEY: 'zeta_transactions'
+    SYNC_INTERVAL: 30000, // 30 detik
+    MAX_RETRIES: 3,
+    VERSION: '3.0'
 };
 
-// ===== STATE MANAGEMENT =====
+// ===== STATE =====
 let state = {
     orderItems: [],
-    selectedItemIndex: null,
-    currentQuantity: 1,
-    cashReceived: 0,
+    pendingSync: [],
     isOnline: false,
-    backups: [],
-    transactions: []
+    lastSync: null,
+    syncQueue: [],
+    realTimeData: null
 };
 
-// ===== DOM ELEMENTS =====
-const elements = {};
-
-// ===== INITIALIZATION =====
-document.addEventListener('DOMContentLoaded', function() {
-    initializeElements();
-    loadSavedData();
-    setupEventListeners();
-    testConnectionAuto();
-    updateUI();
+// ===== WEBSOCKET SIMULATION (Polling) =====
+class RealTimeSync {
+    constructor() {
+        this.interval = null;
+        this.listeners = [];
+        this.isRunning = false;
+    }
     
-    console.log('🔥 ZETA POS v2.0 initialized');
-    addLog('Sistem siap. Pilih menu untuk memulai.');
-});
-
-function initializeElements() {
-    // Menu buttons
-    elements.menuButtons = document.querySelectorAll('.btn-add');
-    elements.resetBtn = document.getElementById('btn-reset-all');
-    elements.testBtn = document.getElementById('btn-test');
-    elements.exportBtn = document.getElementById('btn-export');
+    start() {
+        if (this.isRunning) return;
+        
+        console.log("🔄 Starting real-time sync...");
+        this.isRunning = true;
+        
+        // Sync setiap 30 detik
+        this.interval = setInterval(() => {
+            this.syncData();
+            this.checkConnection();
+        }, CONFIG.SYNC_INTERVAL);
+        
+        // Immediate first sync
+        setTimeout(() => this.syncData(), 1000);
+    }
     
-    // Order management
-    elements.orderItemsContainer = document.getElementById('order-items');
-    elements.orderCount = document.getElementById('order-count');
-    elements.qtyInput = document.getElementById('qty-input');
-    elements.qtyButtons = document.querySelectorAll('.qty-btn');
-    elements.updateQtyBtn = document.getElementById('btn-update-qty');
+    stop() {
+        if (this.interval) {
+            clearInterval(this.interval);
+            this.interval = null;
+        }
+        this.isRunning = false;
+        console.log("⏹️ Real-time sync stopped");
+    }
     
-    // Payment
-    elements.cashInput = document.getElementById('cash-input');
-    elements.calculateBtn = document.getElementById('btn-calculate');
-    elements.processBtn = document.getElementById('btn-process');
-    elements.totalOrder = document.getElementById('total-order');
-    elements.changeAmount = document.getElementById('change-amount');
-    elements.validationMsg = document.getElementById('validation-msg');
+    async syncData() {
+        if (!CONFIG.APPS_SCRIPT_URL) return;
+        
+        try {
+            // 1. Sync pending transactions
+            await this.syncPendingTransactions();
+            
+            // 2. Get latest data
+            await this.fetchLatestData();
+            
+            // 3. Update UI
+            this.notifyListeners();
+            
+            state.lastSync = new Date();
+            updateSyncStatus(true);
+            
+        } catch (error) {
+            console.error("❌ Sync error:", error);
+            updateSyncStatus(false);
+        }
+    }
     
-    // Status & UI
-    elements.connectionStatus = document.getElementById('connection-status');
-    elements.backupCount = document.getElementById('backup-count');
-    elements.totalTransactions = document.getElementById('total-transactions');
-    elements.transactionLog = document.getElementById('transaction-log');
+    async syncPendingTransactions() {
+        if (state.syncQueue.length === 0) return;
+        
+        console.log(`📤 Syncing ${state.syncQueue.length} pending transactions...`);
+        
+        for (let i = 0; i < state.syncQueue.length; i++) {
+            const transaction = state.syncQueue[i];
+            
+            try {
+                const success = await this.sendTransaction(transaction);
+                
+                if (success) {
+                    // Remove from queue
+                    state.syncQueue.splice(i, 1);
+                    i--;
+                    
+                    // Save to local history
+                    saveToHistory(transaction, 'synced');
+                    
+                    console.log("✅ Transaction synced:", transaction.transaction_id);
+                }
+            } catch (error) {
+                console.error("❌ Failed to sync transaction:", error);
+                transaction.retries = (transaction.retries || 0) + 1;
+                
+                // Remove if too many retries
+                if (transaction.retries >= CONFIG.MAX_RETRIES) {
+                    state.syncQueue.splice(i, 1);
+                    i--;
+                    saveToHistory(transaction, 'failed');
+                    console.log("🗑️ Transaction moved to history after max retries");
+                }
+            }
+        }
+        
+        // Update queue display
+        updateQueueDisplay();
+    }
     
-    // Modal
-    elements.configModal = document.getElementById('config-modal');
-    elements.openConfigBtn = document.getElementById('btn-open-config');
-    elements.closeConfigBtn = document.querySelector('.btn-close');
-    elements.scriptUrlInput = document.getElementById('script-url');
-    elements.sheetIdInput = document.getElementById('sheet-id');
-    elements.testConfigBtn = document.getElementById('btn-test-config');
-    elements.saveConfigBtn = document.getElementById('btn-save-config');
+    async sendTransaction(transaction) {
+        // Generate unique ID jika belum ada
+        if (!transaction.transaction_id) {
+            transaction.transaction_id = 'T' + Date.now() + Math.random().toString(36).substr(2, 9);
+        }
+        
+        // Add timestamp
+        transaction.timestamp = new Date().toISOString();
+        
+        // Try multiple methods
+        const methods = [
+            this.sendViaPost,
+            this.sendViaGet,
+            this.sendViaForm
+        ];
+        
+        for (const method of methods) {
+            try {
+                const result = await method.call(this, transaction);
+                if (result) return true;
+            } catch (error) {
+                console.log(`⚠️ Method failed, trying next...`);
+            }
+        }
+        
+        throw new Error("All methods failed");
+    }
     
-    // Loading
-    elements.loadingOverlay = document.getElementById('loading-overlay');
-    elements.loadingText = document.getElementById('loading-text');
+    async sendViaPost(transaction) {
+        const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(transaction),
+            mode: 'cors'
+        });
+        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const result = await response.json();
+        return result.status === 'success';
+    }
     
-    // Footer
-    elements.clearBackupBtn = document.getElementById('btn-clear-backup');
+    async sendViaGet(transaction) {
+        const encoded = encodeURIComponent(JSON.stringify(transaction));
+        const url = `${CONFIG.APPS_SCRIPT_URL}?json=${encoded}&t=${Date.now()}`;
+        
+        const response = await fetch(url);
+        const result = await response.json();
+        return result.status === 'success';
+    }
+    
+    async sendViaForm(transaction) {
+        const formData = new FormData();
+        formData.append('json', JSON.stringify(transaction));
+        
+        const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        return result.status === 'success';
+    }
+    
+    async fetchLatestData() {
+        if (!CONFIG.APPS_SCRIPT_URL) return;
+        
+        try {
+            const url = `${CONFIG.APPS_SCRIPT_URL}?action=recent&t=${Date.now()}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            if (data.recent_transactions) {
+                state.realTimeData = data.recent_transactions;
+                updateRealTimeDisplay();
+            }
+            
+            // Update stats
+            if (data.stats) {
+                updateStatsDisplay(data.stats);
+            }
+            
+        } catch (error) {
+            console.error("❌ Failed to fetch latest data:", error);
+        }
+    }
+    
+    async checkConnection() {
+        if (!CONFIG.APPS_SCRIPT_URL) {
+            state.isOnline = false;
+            return;
+        }
+        
+        try {
+            const url = `${CONFIG.APPS_SCRIPT_URL}?action=ping&t=${Date.now()}`;
+            const response = await fetch(url, { timeout: 5000 });
+            const data = await response.json();
+            
+            state.isOnline = data.status === 'alive';
+            updateConnectionStatus(state.isOnline);
+            
+        } catch (error) {
+            state.isOnline = false;
+            updateConnectionStatus(false);
+        }
+    }
+    
+    addListener(callback) {
+        this.listeners.push(callback);
+    }
+    
+    notifyListeners() {
+        this.listeners.forEach(callback => {
+            try {
+                callback(state);
+            } catch (error) {
+                console.error("Listener error:", error);
+            }
+        });
+    }
 }
 
-function loadSavedData() {
-    // Load backups
-    try {
-        const backupsJson = localStorage.getItem(CONFIG.BACKUP_KEY);
-        state.backups = backupsJson ? JSON.parse(backupsJson) : [];
-    } catch (e) {
-        state.backups = [];
-        console.error('Error loading backups:', e);
+// ===== INITIALIZATION =====
+let realTimeSync;
+
+document.addEventListener('DOMContentLoaded', function() {
+    initialize();
+    setupEventListeners();
+    loadConfig();
+    startRealTimeSync();
+    
+    console.log("🚀 ZETA POS v3.0 initialized");
+    addLog("Sistem real-time ready", "success");
+});
+
+function initialize() {
+    // Load state from localStorage
+    const savedState = localStorage.getItem('zeta_pos_state');
+    if (savedState) {
+        try {
+            const parsed = JSON.parse(savedState);
+            state.orderItems = parsed.orderItems || [];
+            state.syncQueue = parsed.syncQueue || [];
+        } catch (e) {
+            console.error("Error loading state:", e);
+        }
     }
     
-    // Load transactions count
-    try {
-        const transactionsJson = localStorage.getItem(CONFIG.TRANSACTION_KEY);
-        state.transactions = transactionsJson ? JSON.parse(transactionsJson) : [];
-    } catch (e) {
-        state.transactions = [];
-    }
+    // Initialize real-time sync
+    realTimeSync = new RealTimeSync();
+    realTimeSync.addListener(onStateUpdate);
     
-    // Update counts
-    updateBackupCount();
-    updateTransactionCount();
+    // Update UI
+    updateOrderDisplay();
+    updateQueueDisplay();
 }
 
 function setupEventListeners() {
     // Menu buttons
-    elements.menuButtons.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const itemId = this.getAttribute('data-id');
-            const menuCard = this.closest('.menu-card');
-            const price = parseInt(menuCard.getAttribute('data-price'));
-            const name = menuCard.querySelector('h3').textContent;
+    document.querySelectorAll('.menu-card').forEach(card => {
+        card.addEventListener('click', function(e) {
+            if (e.target.classList.contains('btn-add')) return;
             
-            addOrderItem({
-                id: itemId,
-                name: name,
-                price: price,
-                quantity: state.currentQuantity
-            });
+            const id = this.dataset.id;
+            const name = this.querySelector('h3').textContent;
+            const price = parseInt(this.dataset.price);
+            
+            addToOrder({ id, name, price, quantity: 1 });
         });
     });
     
-    // Reset button
-    elements.resetBtn.addEventListener('click', resetAll);
-    
-    // Test connection
-    elements.testBtn.addEventListener('click', testConnection);
-    
-    // Export button
-    elements.exportBtn.addEventListener('click', exportData);
+    // Add buttons
+    document.querySelectorAll('.btn-add').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const card = this.closest('.menu-card');
+            const id = card.dataset.id;
+            const name = card.querySelector('h3').textContent;
+            const price = parseInt(card.dataset.price);
+            
+            addToOrder({ id, name, price, quantity: 1 });
+        });
+    });
     
     // Quantity controls
-    elements.qtyButtons.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const action = this.getAttribute('data-action');
-            updateQuantity(action);
-        });
-    });
+    document.getElementById('qty-minus').addEventListener('click', () => updateQuantity(-1));
+    document.getElementById('qty-plus').addEventListener('click', () => updateQuantity(1));
+    document.getElementById('qty-input').addEventListener('change', updateQtyInput);
     
-    elements.updateQtyBtn.addEventListener('click', updateSelectedQuantity);
+    // Payment
+    document.getElementById('btn-calculate').addEventListener('click', calculatePayment);
+    document.getElementById('cash-input').addEventListener('input', validateCash);
+    document.getElementById('btn-process').addEventListener('click', processPayment);
     
-    // Payment controls
-    elements.calculateBtn.addEventListener('click', calculateChange);
-    elements.processBtn.addEventListener('click', processTransaction);
-    elements.cashInput.addEventListener('input', validatePayment);
+    // Reset
+    document.getElementById('btn-reset').addEventListener('click', resetOrder);
     
-    // Modal controls
-    elements.openConfigBtn.addEventListener('click', openConfigModal);
-    elements.closeConfigBtn.addEventListener('click', closeConfigModal);
-    elements.testConfigBtn.addEventListener('click', testConfigConnection);
-    elements.saveConfigBtn.addEventListener('click', saveConfig);
+    // Sync controls
+    document.getElementById('btn-sync-now').addEventListener('click', () => realTimeSync.syncData());
+    document.getElementById('btn-view-dashboard').addEventListener('click', openDashboard);
     
-    // Clear backup
-    elements.clearBackupBtn.addEventListener('click', clearBackups);
+    // Config
+    document.getElementById('btn-config').addEventListener('click', openConfig);
+    document.getElementById('btn-save-config').addEventListener('click', saveConfig);
+    document.getElementById('btn-test-config').addEventListener('click', testConfig);
+}
+
+function loadConfig() {
+    const url = localStorage.getItem('zeta_script_url');
+    const sheetId = localStorage.getItem('zeta_sheet_id');
     
-    // Close modal on background click
-    elements.configModal.addEventListener('click', function(e) {
-        if (e.target === this) closeConfigModal();
-    });
+    if (url) {
+        CONFIG.APPS_SCRIPT_URL = url;
+        document.getElementById('config-url').value = url;
+    }
     
-    // Keyboard shortcuts
-    document.addEventListener('keydown', function(e) {
-        // Ctrl + S to save
-        if (e.ctrlKey && e.key === 's') {
-            e.preventDefault();
-            if (!elements.processBtn.disabled) {
-                processTransaction();
-            }
-        }
-        
-        // Escape to close modal
-        if (e.key === 'Escape') {
-            closeConfigModal();
-        }
-        
-        // F1 for help
-        if (e.key === 'F1') {
-            e.preventDefault();
-            openConfigModal();
-        }
-    });
+    if (sheetId) {
+        document.getElementById('config-sheet-id').value = sheetId;
+    }
+}
+
+function startRealTimeSync() {
+    if (CONFIG.APPS_SCRIPT_URL) {
+        realTimeSync.start();
+        updateConnectionStatus(true);
+    } else {
+        updateConnectionStatus(false);
+        addLog("⚠️ URL Apps Script belum dikonfigurasi", "warning");
+    }
 }
 
 // ===== ORDER MANAGEMENT =====
-function addOrderItem(item) {
-    // Check if item already exists
+function addToOrder(item) {
+    // Check if already exists
     const existingIndex = state.orderItems.findIndex(i => i.id === item.id);
     
     if (existingIndex > -1) {
-        // Update quantity
         state.orderItems[existingIndex].quantity += item.quantity;
-        state.orderItems[existingIndex].subtotal = 
-            state.orderItems[existingIndex].quantity * state.orderItems[existingIndex].price;
-        state.selectedItemIndex = existingIndex;
     } else {
-        // Add new item
-        const newItem = {
-            ...item,
-            subtotal: item.price * item.quantity
-        };
-        state.orderItems.push(newItem);
-        state.selectedItemIndex = state.orderItems.length - 1;
+        state.orderItems.push({ ...item });
     }
     
-    updateUI();
-    addLog(`Ditambahkan: ${item.name} x${item.quantity}`);
+    updateOrderDisplay();
+    saveState();
+    addLog(`+ ${item.name} ditambahkan`, "info");
 }
 
-function removeOrderItem(index) {
-    const removedItem = state.orderItems[index];
-    state.orderItems.splice(index, 1);
-    
-    if (state.selectedItemIndex === index) {
-        state.selectedItemIndex = null;
-    } else if (state.selectedItemIndex > index) {
-        state.selectedItemIndex--;
-    }
-    
-    updateUI();
-    addLog(`Dihapus: ${removedItem.name}`);
+function updateQuantity(change) {
+    const input = document.getElementById('qty-input');
+    let value = parseInt(input.value) || 1;
+    value = Math.max(1, Math.min(99, value + change));
+    input.value = value;
 }
 
-function updateSelectedQuantity() {
-    if (state.selectedItemIndex === null) {
-        showValidation('Pilih item terlebih dahulu!', 'error');
+function updateQtyInput() {
+    const input = document.getElementById('qty-input');
+    let value = parseInt(input.value) || 1;
+    value = Math.max(1, Math.min(99, value));
+    input.value = value;
+}
+
+function updateOrderDisplay() {
+    const container = document.getElementById('order-items');
+    const totalElement = document.getElementById('order-total');
+    
+    if (state.orderItems.length === 0) {
+        container.innerHTML = `
+            <div class="empty-order">
+                <i class="fas fa-shopping-cart"></i>
+                <p>Belum ada pesanan</p>
+            </div>
+        `;
+        totalElement.textContent = 'Rp0';
         return;
     }
     
-    const newQty = parseInt(elements.qtyInput.value);
-    if (isNaN(newQty) || newQty < 1) {
-        showValidation('Jumlah tidak valid!', 'error');
-        return;
-    }
+    let html = '';
+    let total = 0;
     
-    state.orderItems[state.selectedItemIndex].quantity = newQty;
-    state.orderItems[state.selectedItemIndex].subtotal = 
-        state.orderItems[state.selectedItemIndex].price * newQty;
+    state.orderItems.forEach((item, index) => {
+        const subtotal = item.price * item.quantity;
+        total += subtotal;
+        
+        html += `
+            <div class="order-item" data-index="${index}">
+                <div class="item-info">
+                    <div class="item-name">${item.name}</div>
+                    <div class="item-price">${formatRupiah(item.price)}</div>
+                </div>
+                <div class="item-controls">
+                    <button class="btn-qty minus" onclick="adjustQuantity(${index}, -1)">-</button>
+                    <span class="item-quantity">${item.quantity}</span>
+                    <button class="btn-qty plus" onclick="adjustQuantity(${index}, 1)">+</button>
+                    <span class="item-subtotal">${formatRupiah(subtotal)}</span>
+                    <button class="btn-remove" onclick="removeItem(${index})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
     
-    updateUI();
-    addLog(`Diupdate: ${state.orderItems[state.selectedItemIndex].name} → ${newQty}pcs`);
+    container.innerHTML = html;
+    totalElement.textContent = formatRupiah(total);
 }
 
-function updateQuantity(action) {
-    let current = parseInt(elements.qtyInput.value);
-    
-    if (action === 'increase') {
-        if (current < 99) current++;
-    } else if (action === 'decrease') {
-        if (current > 1) current--;
+function adjustQuantity(index, change) {
+    if (state.orderItems[index]) {
+        state.orderItems[index].quantity = Math.max(1, state.orderItems[index].quantity + change);
+        updateOrderDisplay();
+        saveState();
     }
-    
-    elements.qtyInput.value = current;
-    state.currentQuantity = current;
 }
 
-// ===== PAYMENT CALCULATION =====
-function calculateChange() {
-    const total = state.orderItems.reduce((sum, item) => sum + item.subtotal, 0);
-    const cash = parseInt(elements.cashInput.value) || 0;
+function removeItem(index) {
+    if (state.orderItems[index]) {
+        const removed = state.orderItems.splice(index, 1)[0];
+        updateOrderDisplay();
+        saveState();
+        addLog(`- ${removed.name} dihapus`, "warning");
+    }
+}
+
+function resetOrder() {
+    if (state.orderItems.length === 0) return;
+    
+    if (confirm('Reset semua pesanan?')) {
+        state.orderItems = [];
+        updateOrderDisplay();
+        saveState();
+        addLog("Semua pesanan direset", "warning");
+    }
+}
+
+// ===== PAYMENT PROCESSING =====
+function calculatePayment() {
+    const total = state.orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const cashInput = document.getElementById('cash-input');
+    const cash = parseInt(cashInput.value) || 0;
+    const changeElement = document.getElementById('change-amount');
     
     if (cash === 0) {
-        showValidation('Masukkan jumlah uang!', 'error');
+        showAlert('Masukkan jumlah uang!', 'error');
         return;
     }
     
     if (cash < total) {
         const kurang = total - cash;
-        showValidation(`Uang kurang Rp${formatNumber(kurang)}!`, 'error');
-        elements.processBtn.disabled = true;
-        elements.changeAmount.textContent = 'Rp0';
+        showAlert(`Uang kurang Rp${formatNumber(kurang)}!`, 'error');
+        changeElement.textContent = 'Rp0';
         return;
     }
     
     const change = cash - total;
-    state.cashReceived = cash;
-    
-    elements.changeAmount.textContent = formatRupiah(change);
-    elements.processBtn.disabled = false;
-    showValidation('Pembayaran valid. Klik PROSES TRANSAKSI.', 'success');
-    
-    addLog(`Pembayaran: Rp${formatNumber(cash)}, Kembalian: Rp${formatNumber(change)}`);
+    changeElement.textContent = formatRupiah(change);
+    showAlert('Pembayaran valid. Klik PROSES.', 'success');
 }
 
-function validatePayment() {
-    const cash = parseInt(elements.cashInput.value) || 0;
-    const total = state.orderItems.reduce((sum, item) => sum + item.subtotal, 0);
+function validateCash() {
+    const total = state.orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const cash = parseInt(document.getElementById('cash-input').value) || 0;
+    const processBtn = document.getElementById('btn-process');
     
-    if (cash > 0 && cash < total) {
-        const kurang = total - cash;
-        elements.changeAmount.textContent = 'Rp0';
-        elements.processBtn.disabled = true;
-        showValidation(`Kurang Rp${formatNumber(kurang)}`, 'error');
-    } else if (cash >= total) {
-        elements.processBtn.disabled = false;
-        showValidation('', 'success');
-    } else {
-        elements.changeAmount.textContent = 'Rp0';
-        elements.processBtn.disabled = true;
-        showValidation('', 'success');
-    }
+    processBtn.disabled = cash < total || total === 0;
 }
 
-// ===== TRANSACTION PROCESSING =====
-async function processTransaction() {
-    const total = state.orderItems.reduce((sum, item) => sum + item.subtotal, 0);
-    const cash = state.cashReceived || parseInt(elements.cashInput.value) || 0;
+async function processPayment() {
+    const total = state.orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const cash = parseInt(document.getElementById('cash-input').value) || 0;
     
-    if (cash < total) {
-        showValidation('Uang belum cukup!', 'error');
+    if (cash < total || state.orderItems.length === 0) {
+        showAlert('Pembayaran tidak valid!', 'error');
         return;
     }
     
-    if (state.orderItems.length === 0) {
-        showValidation('Tidak ada pesanan!', 'error');
-        return;
-    }
-    
-    showLoading('Memproses transaksi...');
-    
-    // Prepare transaction data
-    const transactionData = {
-        timestamp: new Date().toISOString(),
+    // Prepare transaction
+    const transaction = {
+        transaction_id: 'T' + Date.now(),
         date: new Date().toLocaleDateString('id-ID'),
         time: new Date().toLocaleTimeString('id-ID'),
         items: state.orderItems,
         total: total,
-        cash_received: cash,
+        cash: cash,
         change: cash - total,
-        status: 'pending'
+        status: 'pending_sync'
     };
     
-    let saveResult = false;
+    // Add to sync queue
+    state.syncQueue.push(transaction);
     
-    // Try to save to Google Sheets first
-    if (CONFIG.APPS_SCRIPT_URL && state.isOnline) {
-        saveResult = await saveToGoogleSheets(transactionData);
-    }
+    // Show processing
+    showProcessing(true);
     
-    if (!saveResult) {
-        // Save to local backup
-        saveResult = saveToLocalBackup(transactionData);
-        
-        if (saveResult) {
-            transactionData.status = 'saved_locally';
-            addLog('⚠️ Disimpan ke backup lokal (offline mode)');
-        }
-    }
-    
-    // Save to transaction history
-    if (saveResult) {
-        saveTransactionToHistory(transactionData);
-        
-        // Show success
-        setTimeout(() => {
-            hideLoading();
-            
-            // Reset for next transaction
-            state.orderItems = [];
-            state.selectedItemIndex = null;
-            elements.cashInput.value = '';
-            updateUI();
-            
-            // Show success message
-            alert(`✅ TRANSAKSI BERHASIL!\n\nTotal: ${formatRupiah(total)}\nUang: ${formatRupiah(cash)}\nKembalian: ${formatRupiah(cash - total)}\n\n${transactionData.status === 'saved_locally' ? '⚠️ Data disimpan lokal saja' : '✅ Data terkirim ke Google Sheets'}`);
-            
-            addLog(`Transaksi selesai: Rp${formatNumber(total)}`);
-            
-        }, 1000);
-    } else {
-        hideLoading();
-        showValidation('Gagal menyimpan transaksi!', 'error');
-    }
-}
-
-// ===== GOOGLE SHEETS INTEGRATION =====
-async function saveToGoogleSheets(transactionData) {
-    if (!CONFIG.APPS_SCRIPT_URL) return false;
-    
+    // Try immediate sync
     try {
-        const payload = {
-            action: 'save_transaction',
-            data: transactionData,
-            config: {
-                sheet_id: CONFIG.SPREADSHEET_ID,
-                timestamp: new Date().getTime()
-            }
-        };
+        const success = await realTimeSync.sendTransaction(transaction);
         
-        // Encode as form data for better compatibility
-        const formData = new URLSearchParams();
-        formData.append('data', JSON.stringify(payload));
-        
-        // Try multiple methods
-        const methods = [
-            // Method 1: POST with form data
-            async () => {
-                const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    },
-                    body: formData.toString(),
-                    mode: 'no-cors'
-                });
-                return true; // With no-cors we can't check response
-            },
+        if (success) {
+            // Remove from queue if successful
+            const index = state.syncQueue.findIndex(t => t.transaction_id === transaction.transaction_id);
+            if (index > -1) state.syncQueue.splice(index, 1);
             
-            // Method 2: GET with URL parameters (fallback)
-            async () => {
-                const url = `${CONFIG.APPS_SCRIPT_URL}?${formData.toString()}`;
-                await fetch(url, { mode: 'no-cors' });
-                return true;
-            },
-            
-            // Method 3: Direct JSON POST
-            async () => {
-                const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload),
-                    mode: 'no-cors'
-                });
-                return true;
-            }
-        ];
-        
-        // Try each method until one works
-        for (const method of methods) {
-            try {
-                await method();
-                console.log('✅ Data sent to Google Sheets');
-                transactionData.status = 'sent_to_sheets';
-                return true;
-            } catch (error) {
-                console.log('⚠️ Method failed, trying next...', error.message);
-            }
+            showAlert('✅ Transaksi berhasil disimpan ke Google Sheets!', 'success');
+            saveToHistory(transaction, 'synced_immediately');
+        } else {
+            showAlert('⚠️ Transaksi disimpan lokal, akan disync otomatis', 'warning');
+            saveToHistory(transaction, 'queued');
         }
-        
-        return false;
-        
     } catch (error) {
-        console.error('❌ Google Sheets save failed:', error);
-        return false;
-    }
-}
-
-// ===== LOCAL BACKUP SYSTEM =====
-function saveToLocalBackup(transactionData) {
-    try {
-        transactionData.backup_timestamp = new Date().toISOString();
-        transactionData.backup_id = 'backup_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        
-        state.backups.push(transactionData);
-        
-        // Keep only last 100 backups
-        if (state.backups.length > 100) {
-            state.backups = state.backups.slice(-100);
-        }
-        
-        // Save to localStorage
-        localStorage.setItem(CONFIG.BACKUP_KEY, JSON.stringify(state.backups));
-        
-        updateBackupCount();
-        console.log('💾 Saved to local backup:', transactionData.backup_id);
-        
-        return true;
-        
-    } catch (error) {
-        console.error('❌ Local backup failed:', error);
-        return false;
-    }
-}
-
-function saveTransactionToHistory(transactionData) {
-    try {
-        state.transactions.push({
-            id: 'trans_' + Date.now(),
-            timestamp: new Date().toISOString(),
-            total: transactionData.total,
-            status: transactionData.status
-        });
-        
-        // Keep only last 500 transactions
-        if (state.transactions.length > 500) {
-            state.transactions = state.transactions.slice(-500);
-        }
-        
-        localStorage.setItem(CONFIG.TRANSACTION_KEY, JSON.stringify(state.transactions));
-        updateTransactionCount();
-        
-    } catch (error) {
-        console.error('Error saving transaction history:', error);
-    }
-}
-
-function clearBackups() {
-    if (confirm('🔥 HAPUS SEMUA BACKUP LOKAL?\n\nData akan dihapus permanen!\nTransaksi yang belum dikirim ke Sheets akan hilang!')) {
-        state.backups = [];
-        localStorage.removeItem(CONFIG.BACKUP_KEY);
-        updateBackupCount();
-        addLog('Semua backup lokal dihapus!');
-        alert('✅ Backup lokal dihapus!');
-    }
-}
-
-// ===== CONFIGURATION MANAGEMENT =====
-function openConfigModal() {
-    elements.scriptUrlInput.value = CONFIG.APPS_SCRIPT_URL;
-    elements.sheetIdInput.value = CONFIG.SPREADSHEET_ID;
-    elements.configModal.style.display = 'flex';
-}
-
-function closeConfigModal() {
-    elements.configModal.style.display = 'none';
-}
-
-async function testConfigConnection() {
-    const scriptUrl = elements.scriptUrlInput.value.trim();
-    const sheetId = elements.sheetIdInput.value.trim();
-    
-    if (!scriptUrl) {
-        alert('Masukkan URL Apps Script terlebih dahulu!');
-        return;
+        showAlert('⚠️ Transaksi disimpan lokal, akan disync otomatis', 'warning');
+        saveToHistory(transaction, 'queued');
     }
     
-    showLoading('Menguji koneksi...');
-    
-    try {
-        // Test the URL
-        const testUrl = scriptUrl + (scriptUrl.includes('?') ? '&' : '?') + 'test=true';
-        const response = await fetch(testUrl, { mode: 'no-cors' });
+    // Reset for next transaction
+    setTimeout(() => {
+        state.orderItems = [];
+        document.getElementById('cash-input').value = '';
+        document.getElementById('change-amount').textContent = 'Rp0';
         
-        // With no-cors we can't read response, so assume success if no error
-        setTimeout(() => {
-            hideLoading();
-            alert('✅ Koneksi berhasil!\n\nURL Apps Script valid.\n\nKlik SIMPAN KONFIG untuk menyimpan.');
-        }, 1500);
+        updateOrderDisplay();
+        updateQueueDisplay();
+        showProcessing(false);
         
-    } catch (error) {
-        hideLoading();
-        alert('❌ Koneksi gagal!\n\nPeriksa:\n1. URL Apps Script\n2. Deployment: "Anyone, even anonymous"\n3. Koneksi internet');
-    }
+        // Trigger sync
+        realTimeSync.syncData();
+        
+    }, 2000);
 }
 
-function saveConfig() {
-    const scriptUrl = elements.scriptUrlInput.value.trim();
-    const sheetId = elements.sheetIdInput.value.trim();
+// ===== REAL-TIME DISPLAY =====
+function updateRealTimeDisplay() {
+    if (!state.realTimeData) return;
     
-    if (!scriptUrl) {
-        alert('URL Apps Script wajib diisi!');
-        return;
-    }
+    const container = document.getElementById('recent-transactions');
+    if (!container) return;
     
-    // Validate URL format
-    if (!scriptUrl.includes('script.google.com/macros/s/') || !scriptUrl.includes('/exec')) {
-        if (!confirm('URL tidak sesuai format standar.\nFormat: https://script.google.com/macros/s/AKfycbx2urKusuT3u8E6kb90KH5_6ABqQ5mepcDL54gu56va66mW8ucTiyN3ZBS0k3uUq5fv/exec\n\nLanjutkan tetap menyimpan?')) {
-            return;
-        }
-    }
+    let html = '';
     
-    // Save to config
-    CONFIG.APPS_SCRIPT_URL = scriptUrl;
-    CONFIG.SPREADSHEET_ID = sheetId;
-    
-    // Save to localStorage
-    localStorage.setItem('zeta_script_url', scriptUrl);
-    localStorage.setItem('zeta_sheet_id', sheetId);
-    
-    // Test connection
-    testConnection();
-    
-    closeConfigModal();
-    alert('✅ Konfigurasi disimpan!\n\nSistem akan mencoba terhubung ke Google Sheets.');
-}
-
-// ===== CONNECTION TESTING =====
-async function testConnection() {
-    if (!CONFIG.APPS_SCRIPT_URL) {
-        updateConnectionStatus(false);
-        addLog('❌ URL Apps Script belum dikonfigurasi');
-        return;
-    }
-    
-    try {
-        const testUrl = CONFIG.APPS_SCRIPT_URL + (CONFIG.APPS_SCRIPT_URL.includes('?') ? '&' : '?') + 'test=' + Date.now();
-        
-        // Use iframe method for better compatibility
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = testUrl;
-        
-        iframe.onload = function() {
-            updateConnectionStatus(true);
-            addLog('✅ Terhubung ke Google Sheets');
-            document.body.removeChild(iframe);
-        };
-        
-        iframe.onerror = function() {
-            updateConnectionStatus(false);
-            addLog('❌ Gagal terhubung ke Google Sheets');
-            document.body.removeChild(iframe);
-        };
-        
-        document.body.appendChild(iframe);
-        
-        // Timeout after 5 seconds
-        setTimeout(() => {
-            if (document.body.contains(iframe)) {
-                document.body.removeChild(iframe);
-                updateConnectionStatus(false);
-                addLog('⚠️ Timeout koneksi ke Google Sheets');
-            }
-        }, 5000);
-        
-    } catch (error) {
-        updateConnectionStatus(false);
-        addLog('❌ Error koneksi: ' + error.message);
-    }
-}
-
-function testConnectionAuto() {
-    // Test connection on startup
-    setTimeout(testConnection, 1000);
-    
-    // Auto-test every 30 seconds
-    setInterval(testConnection, 30000);
-}
-
-// ===== UI UPDATES =====
-function updateUI() {
-    updateOrderList();
-    updateOrderSummary();
-    updateSelectedItem();
-}
-
-function updateOrderList() {
-    elements.orderItemsContainer.innerHTML = '';
-    
-    if (state.orderItems.length === 0) {
-        elements.orderItemsContainer.innerHTML = `
-            <tr class="empty-state">
-                <td colspan="5">
-                    <i class="fas fa-shopping-cart"></i>
-                    <p>Belum ada pesanan</p>
-                    <small>Pilih menu dari sidebar</small>
-                </td>
-            </tr>
+    state.realTimeData.slice(0, 5).forEach(transaction => {
+        html += `
+            <div class="recent-transaction">
+                <div class="recent-time">${transaction.time}</div>
+                <div class="recent-amount">${formatRupiah(transaction.total)}</div>
+                <div class="recent-id">${transaction.transaction_id}</div>
+            </div>
         `;
-        elements.orderCount.textContent = '0 ITEM';
-        return;
-    }
-    
-    let totalItems = 0;
-    
-    state.orderItems.forEach((item, index) => {
-        totalItems += item.quantity;
-        
-        const row = document.createElement('tr');
-        row.className = index === state.selectedItemIndex ? 'selected-item' : '';
-        row.innerHTML = `
-            <td>
-                <strong>${item.name}</strong>
-                <div class="item-desc">${item.id.toUpperCase()}</div>
-            </td>
-            <td>
-                <div class="item-qty">${item.quantity}</div>
-            </td>
-            <td>${formatRupiah(item.price)}</td>
-            <td><strong>${formatRupiah(item.subtotal)}</strong></td>
-            <td>
-                <button class="btn-delete" data-index="${index}">
-                    <i class="fas fa-times"></i>
-                </button>
-            </td>
-        `;
-        
-        elements.orderItemsContainer.appendChild(row);
-        
-        // Add click handler for selection
-        row.addEventListener('click', function(e) {
-            if (!e.target.closest('.btn-delete')) {
-                state.selectedItemIndex = index;
-                elements.qtyInput.value = item.quantity;
-                state.currentQuantity = item.quantity;
-                updateUI();
-            }
-        });
-        
-        // Add delete handler
-        const deleteBtn = row.querySelector('.btn-delete');
-        deleteBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            removeOrderItem(index);
-        });
     });
     
-    elements.orderCount.textContent = `${totalItems} ITEM`;
+    container.innerHTML = html || '<div class="no-data">Belum ada transaksi</div>';
 }
 
-function updateOrderSummary() {
-    const total = state.orderItems.reduce((sum, item) => sum + item.subtotal, 0);
-    elements.totalOrder.textContent = formatRupiah(total);
+function updateStatsDisplay(stats) {
+    const container = document.getElementById('stats-display');
+    if (!container) return;
     
-    // Update cash input placeholder
-    elements.cashInput.placeholder = formatNumber(total);
-    
-    // Update process button
-    elements.processBtn.disabled = state.orderItems.length === 0 || total === 0;
+    container.innerHTML = `
+        <div class="stat-item">
+            <div class="stat-label">Total Transaksi</div>
+            <div class="stat-value">${stats.total_rows || 0}</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">Terakhir Update</div>
+            <div class="stat-value">${stats.last_update || '-'}</div>
+        </div>
+    `;
 }
 
-function updateSelectedItem() {
-    // Update quantity input based on selected item
-    if (state.selectedItemIndex !== null && state.orderItems[state.selectedItemIndex]) {
-        elements.qtyInput.value = state.orderItems[state.selectedItemIndex].quantity;
+function updateQueueDisplay() {
+    const container = document.getElementById('sync-queue');
+    if (!container) return;
+    
+    if (state.syncQueue.length === 0) {
+        container.innerHTML = '<div class="empty-queue">Tidak ada transaksi pending</div>';
+        return;
     }
-}
-
-function updateConnectionStatus(isOnline) {
-    state.isOnline = isOnline;
     
-    if (isOnline) {
-        elements.connectionStatus.className = 'status-online';
-        elements.connectionStatus.innerHTML = '<i class="fas fa-circle"></i> ONLINE';
-    } else {
-        elements.connectionStatus.className = 'status-offline';
-        elements.connectionStatus.innerHTML = '<i class="fas fa-circle"></i> OFFLINE MODE';
-    }
-}
-
-function updateBackupCount() {
-    elements.backupCount.textContent = state.backups.length;
-}
-
-function updateTransactionCount() {
-    elements.totalTransactions.textContent = state.transactions.length;
-}
-
-function addLog(message) {
-    const time = new Date().toLocaleTimeString('id-ID', { 
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
+    let html = `<div class="queue-header">${state.syncQueue.length} transaksi pending</div>`;
+    
+    state.syncQueue.slice(0, 3).forEach(transaction => {
+        html += `
+            <div class="queue-item">
+                <div class="queue-id">${transaction.transaction_id}</div>
+                <div class="queue-amount">${formatRupiah(transaction.total)}</div>
+            </div>
+        `;
     });
     
+    if (state.syncQueue.length > 3) {
+        html += `<div class="queue-more">+${state.syncQueue.length - 3} lainnya...</div>`;
+    }
+    
+    container.innerHTML = html;
+}
+
+// ===== UTILITIES =====
+function updateConnectionStatus(online) {
+    const statusElement = document.getElementById('connection-status');
+    const syncBtn = document.getElementById('btn-sync-now');
+    
+    if (online) {
+        statusElement.className = 'status online';
+        statusElement.innerHTML = '<i class="fas fa-wifi"></i> ONLINE';
+        syncBtn.disabled = false;
+    } else {
+        statusElement.className = 'status offline';
+        statusElement.innerHTML = '<i class="fas fa-wifi-slash"></i> OFFLINE';
+        syncBtn.disabled = true;
+    }
+}
+
+function updateSyncStatus(success) {
+    const syncElement = document.getElementById('last-sync');
+    const now = new Date();
+    
+    syncElement.textContent = success 
+        ? `Terakhir sync: ${now.toLocaleTimeString('id-ID')}`
+        : `Sync gagal: ${now.toLocaleTimeString('id-ID')}`;
+    
+    syncElement.className = success ? 'sync-success' : 'sync-failed';
+}
+
+function addLog(message, type = 'info') {
+    const logContainer = document.getElementById('activity-log');
+    if (!logContainer) return;
+    
+    const time = new Date().toLocaleTimeString('id-ID', { hour12: false });
     const logEntry = document.createElement('div');
-    logEntry.className = 'log-entry';
+    logEntry.className = `log-entry ${type}`;
     logEntry.innerHTML = `
         <span class="log-time">${time}</span>
         <span class="log-message">${message}</span>
     `;
     
-    elements.transactionLog.prepend(logEntry);
+    logContainer.prepend(logEntry);
     
-    // Keep only last 20 logs visible
-    const logs = elements.transactionLog.querySelectorAll('.log-entry');
-    if (logs.length > 20) {
-        for (let i = 20; i < logs.length; i++) {
+    // Keep only last 10 logs
+    const logs = logContainer.querySelectorAll('.log-entry');
+    if (logs.length > 10) {
+        for (let i = 10; i < logs.length; i++) {
             logs[i].remove();
         }
     }
 }
 
-// ===== UTILITY FUNCTIONS =====
-function resetAll() {
-    if (state.orderItems.length === 0) return;
+function showAlert(message, type) {
+    const alertDiv = document.getElementById('alert-message');
+    alertDiv.textContent = message;
+    alertDiv.className = `alert ${type}`;
+    alertDiv.style.display = 'block';
     
-    if (confirm('🔥 RESET SEMUA PESANAN?\n\nSemua item akan dihapus!\nUang input akan dikosongkan!')) {
-        state.orderItems = [];
-        state.selectedItemIndex = null;
-        elements.cashInput.value = '';
-        updateUI();
-        addLog('Semua pesanan direset');
+    setTimeout(() => {
+        alertDiv.style.display = 'none';
+    }, 3000);
+}
+
+function showProcessing(show) {
+    const overlay = document.getElementById('processing-overlay');
+    overlay.style.display = show ? 'flex' : 'none';
+}
+
+function saveState() {
+    try {
+        localStorage.setItem('zeta_pos_state', JSON.stringify({
+            orderItems: state.orderItems,
+            syncQueue: state.syncQueue
+        }));
+    } catch (e) {
+        console.error("Error saving state:", e);
     }
 }
 
-function exportData() {
-    if (state.backups.length === 0) {
-        alert('Tidak ada data untuk diexport!');
-        return;
+function saveToHistory(transaction, status) {
+    try {
+        const history = JSON.parse(localStorage.getItem('zeta_history') || '[]');
+        history.push({
+            ...transaction,
+            saved_at: new Date().toISOString(),
+            save_status: status
+        });
+        
+        // Keep only last 100
+        if (history.length > 100) {
+            history.splice(0, history.length - 100);
+        }
+        
+        localStorage.setItem('zeta_history', JSON.stringify(history));
+    } catch (e) {
+        console.error("Error saving to history:", e);
     }
-    
-    const exportData = {
-        exported_at: new Date().toISOString(),
-        system: 'ZETA POS v2.0',
-        backup_count: state.backups.length,
-        transaction_count: state.transactions.length,
-        backups: state.backups,
-        transactions: state.transactions
-    };
-    
-    const dataStr = JSON.stringify(exportData, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
-    const exportFileDefaultName = `zeta_pos_backup_${new Date().toISOString().split('T')[0]}.json`;
-    
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
-    
-    addLog(`Data diexport: ${state.backups.length} backup`);
-}
-
-function showValidation(message, type) {
-    elements.validationMsg.textContent = message;
-    elements.validationMsg.className = 'validation-message ' + type;
-}
-
-function showLoading(text) {
-    elements.loadingText.textContent = text;
-    elements.loadingOverlay.style.display = 'flex';
-}
-
-function hideLoading() {
-    elements.loadingOverlay.style.display = 'none';
 }
 
 function formatRupiah(amount) {
-    return 'Rp' + formatNumber(amount);
+    return 'Rp' + amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
 function formatNumber(num) {
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+// ===== CONFIGURATION =====
+function openConfig() {
+    document.getElementById('config-modal').style.display = 'flex';
+}
+
+function closeConfig() {
+    document.getElementById('config-modal').style.display = 'none';
+}
+
+async function testConfig() {
+    const url = document.getElementById('config-url').value.trim();
+    
+    if (!url) {
+        showAlert('Masukkan URL terlebih dahulu!', 'error');
+        return;
+    }
+    
+    showProcessing(true);
+    
+    try {
+        const testUrl = `${url}?action=ping&t=${Date.now()}`;
+        const response = await fetch(testUrl);
+        const data = await response.json();
+        
+        if (data.status === 'alive') {
+            showAlert('✅ Koneksi berhasil!', 'success');
+        } else {
+            showAlert('❌ Koneksi gagal!', 'error');
+        }
+    } catch (error) {
+        showAlert('❌ Koneksi gagal! Periksa URL dan koneksi internet.', 'error');
+    } finally {
+        showProcessing(false);
+    }
+}
+
+function saveConfig() {
+    const url = document.getElementById('config-url').value.trim();
+    const sheetId = document.getElementById('config-sheet-id').value.trim();
+    
+    if (!url) {
+        showAlert('URL Apps Script wajib diisi!', 'error');
+        return;
+    }
+    
+    // Save to config
+    CONFIG.APPS_SCRIPT_URL = url;
+    localStorage.setItem('zeta_script_url', url);
+    localStorage.setItem('zeta_sheet_id', sheetId);
+    
+    // Restart sync
+    realTimeSync.stop();
+    startRealTimeSync();
+    
+    closeConfig();
+    showAlert('✅ Konfigurasi disimpan!', 'success');
+}
+
+function openDashboard() {
+    window.open('admin.html', '_blank');
+}
+
+// ===== GLOBAL FUNCTIONS =====
+window.adjustQuantity = adjustQuantity;
+window.removeItem = removeItem;
+window.openConfig = openConfig;
+window.closeConfig = closeConfig;
+window.testConfig = testConfig;
+window.saveConfig = saveConfig;
+
+// State update listener
+function onStateUpdate(newState) {
+    // Update display based on state changes
+    updateQueueDisplay();
+    updateRealTimeDisplay();
 }

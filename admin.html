@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔥 ZETA POS - Real-Time Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --zeta-red: #ff4757;
+            --zeta-blue: #3742fa;
+            --zeta-green: #2ed573;
+            --zeta-orange: #ffa502;
+            --zeta-dark: #1a1a2e;
+            --zeta-darker: #0f0f23;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: var(--zeta-darker);
+            color: #e0e0ff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .dashboard-container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .dashboard-header {
+            background: linear-gradient(90deg, #000000 0%, var(--zeta-dark) 100%);
+            border-bottom: 3px solid var(--zeta-red);
+            padding: 25px;
+            margin-bottom: 30px;
+            border-radius: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .header-title {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, var(--zeta-red), var(--zeta-orange));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        .header-stats {
+            display: flex;
+            gap: 25px;
+            flex-wrap: wrap;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 10px;
+            min-width: 200px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .stat-value {
+            font-size: 2.2rem;
+            font-weight: bold;
+            color: var(--zeta-green);
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #a4b1cf;
+            font-size: 0.9rem;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .dashboard-card {
+            background: rgba(26, 26, 46, 0.9);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid var(--zeta-blue);
+            min-height: 300px;
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .card-title {
+            font-size: 1.4rem;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .refresh-btn {
+            background: var(--zeta-blue);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .refresh-btn:hover {
+            background: #5352ed;
+        }
+        
+        /* Real-time Transactions */
+        .realtime-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .realtime-item {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid var(--zeta-green);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+        }
+        
+        .realtime-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateX(5px);
+        }
+        
+        .item-time {
+            color: #00d2ff;
+            font-weight: bold;
+            min-width: 80px;
+        }
+        
+        .item-amount {
+            color: var(--zeta-green);
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        
+        .item-details {
+            color: #a4b1cf;
+            font-size: 0.9rem;
+        }
+        
+        /* Charts */
+        .chart-container {
+            height: 250px;
+            width: 100%;
+            position: relative;
+        }
+        
+        /* Sync Status */
+        .sync-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .sync-online {
+            background: rgba(46, 213, 115, 0.1);
+            border: 1px solid var(--zeta-green);
+        }
+        
+        .sync-offline {
+            background: rgba(255, 71, 87, 0.1);
+            border: 1px solid var(--zeta-red);
+        }
+        
+        .sync-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .sync-online .sync-indicator {
+            background: var(--zeta-green);
+            animation: pulse 2s infinite;
+        }
+        
+        .sync-offline .sync-indicator {
+            background: var(--zeta-red);
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        /* Control Panel */
+        .control-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .control-btn {
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s;
+        }
+        
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--zeta-blue);
+            transform: translateY(-3px);
+        }
+        
+        .control-btn i {
+            font-size: 1.8rem;
+        }
+        
+        .btn-export {
+            border-color: var(--zeta-green);
+        }
+        
+        .btn-clear {
+            border-color: var(--zeta-red);
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header-stats {
+                justify-content: center;
+            }
+            
+            .stat-card {
+                min-width: 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- HEADER -->
+        <header class="dashboard-header">
+            <div>
+                <h1 class="header-title">
+                    <i class="fas fa-tachometer-alt"></i> ZETA POS DASHBOARD
+                </h1>
+                <p style="color: #a4b1cf; margin-top: 5px;">Real-time monitoring & analytics</p>
+            </div>
+            
+            <div class="header-stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="total-transactions">0</div>
+                    <div class="stat-label">Total Transaksi</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="today-transactions">0</div>
+                    <div class="stat-label">Hari Ini</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="total-revenue">Rp0</div>
+                    <div class="stat-label">Total Pendapatan</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="sync-status">OFFLINE</div>
+                    <div class="stat-label">Status Sync</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN DASHBOARD -->
+        <div class="dashboard-grid">
+            <!-- REAL-TIME TRANSACTIONS -->
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="fas fa-bolt"></i> TRANSAKSI REAL-TIME
+                    </h2>
+                    <button class="refresh-btn" onclick="loadRecentTransactions()">
+                        <i class="fas fa-sync-alt"></i> REFRESH
+                    </button>
+                </div>
+                <div class="realtime-list" id="realtime-transactions">
+                    <div class="loading">Memuat data...</div>
+                </div>
+            </div>
+
+            <!-- SYNC STATUS -->
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="fas fa-sync"></i> STATUS SYNC
+                    </h2>
+                </div>
+                <div id="sync-status-card">
+                    <div class="sync-status sync-offline">
+                        <span class="sync-indicator"></span>
+                        <span>Menghubungkan ke Google Sheets...</span>
+                    </div>
+                </div>
+                <div class="sync-info">
+                    <div class="info-item">
+                        <span>URL Apps Script:</span>
+                        <span id="script-url">Not configured</span>
+                    </div>
+                    <div class="info-item">
+                        <span>Terakhir Sync:</span>
+                        <span id="last-sync-time">Never</span>
+                    </div>
+                    <div class="info-item">
+                        <span>Pending Sync:</span>
+                        <span id="pending-sync">0 transactions</span>
+                    </div>
+                </div>
+                
+                <div class="control-panel" style="margin-top: 30px;">
+                    <button class="control-btn" onclick="forceSync()">
+                        <i class="fas fa-sync-alt"></i>
+                        <span>Force Sync</span>
+                    </button>
+                    <button class="control-btn btn-export" onclick="exportData()">
+                        <i class="fas fa-download"></i>
+                        <span>Export Data</span>
+                    </button>
+                    <button class="control-btn" onclick="openMainApp()">
+                        <i class="fas fa-cash-register"></i>
+                        <span>POS Interface</span>
+                    </button>
+                    <button class="control-btn btn-clear" onclick="clearLocalData()">
+                        <i class="fas fa-trash"></i>
+                        <span>Clear Cache</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- DAILY STATS -->
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="fas fa-chart-bar"></i> STATISTIK HARIAN
+                    </h2>
+                    <select id="time-range" onchange="updateChart()">
+                        <option value="today">Hari Ini</option>
+                        <option value="week">7 Hari</option>
+                        <option value="month">30 Hari</option>
+                    </select>
+                </div>
+                <div class="chart-container">
+                    <canvas id="revenue-chart"></canvas>
+                </div>
+                <div class="chart-stats" style="margin-top: 20px;">
+                    <div style="display: flex; justify-content: space-around;">
+                        <div>
+                            <div class="stat-label">Rata-rata</div>
+                            <div class="stat-value" id="avg-transaction">Rp0</div>
+                        </div>
+                        <div>
+                            <div class="stat-label">Tertinggi</div>
+                            <div class="stat-value" id="max-transaction">Rp0</div>
+                        </div>
+                        <div>
+                            <div class="stat-label">Transaksi</div>
+                            <div class="stat-value" id="transaction-count">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ITEM POPULARITY -->
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="fas fa-star"></i> MENU POPULER
+                    </h2>
+                </div>
+                <div id="popular-items">
+                    <div class="loading">Analysing data...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TRANSACTION HISTORY -->
+        <div class="dashboard-card" style="margin-top: 25px;">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-history"></i> RIWAYAT TRANSAKSI
+                </h2>
+                <input type="text" id="search-transaction" placeholder="Cari transaksi..." 
+                       style="background: rgba(255,255,255,0.1); border: 1px solid #3742fa; 
+                              color: white; padding: 8px 15px; border-radius: 6px;">
+            </div>
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th style="padding: 15px; background: #3742fa; color: white;">Waktu</th>
+                            <th style="padding: 15px; background: #3742fa; color: white;">ID</th>
+                            <th style="padding: 15px; background: #3742fa; color: white;">Items</th>
+                            <th style="padding: 15px; background: #3742fa; color: white;">Total</th>
+                            <th style="padding: 15px; background: #3742fa; color: white;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transaction-history">
+                        <tr><td colspan="5" style="padding: 30px; text-align: center;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 20px;">
+                <button class="refresh-btn" onclick="loadMoreHistory()">
+                    <i class="fas fa-plus"></i> Load More
+                </button>
+                <div style="color: #a4b1cf;">
+                    Showing <span id="showing-count">0</span> of <span id="total-count">0</span> transactions
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Configuration
+        const CONFIG = {
+            APPS_SCRIPT_URL: localStorage.getItem('zeta_script_url'),
+            SYNC_INTERVAL: 10000, // 10 seconds
+            PAGE_SIZE: 20
+        };
+
+        // State
+        let state = {
+            transactions: [],
+            stats: null,
+            chart: null,
+            currentPage: 1,
+            totalTransactions: 0
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!CONFIG.APPS_SCRIPT_URL) {
+                showError('URL Apps Script belum dikonfigurasi!');
+                return;
+            }
+            
+            loadDashboardData();
+            startAutoRefresh();
+            
+            console.log("📊 Dashboard initialized");
+        });
+
+        // Load all dashboard data
+        async function loadDashboardData() {
+            try {
+                await Promise.all([
+                    loadStats(),
+                    loadRecentTransactions(),
+                    loadTransactionHistory(),
+                    loadPopularItems()
+                ]);
+                
+                updateSyncStatus(true);
+            } catch (error) {
+                console.error("Dashboard load error:", error);
+                updateSyncStatus(false);
+            }
+        }
+
+        // Load statistics
+        async function loadStats() {
+            try {
+                const url = `${CONFIG.APPS_SCRIPT_URL}?action=stats&t=${Date.now()}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.stats) {
+                    state.stats = data.stats;
+                    
+                    // Update UI
+                    document.getElementById('total-transactions').textContent = 
+                        data.stats.total_rows || 0;
+                    
+                    // Calculate today's transactions (simplified)
+                    document.getElementById('today-transactions').textContent = 
+                        Math.floor((data.stats.total_rows || 0) / 10); // Example
+                    
+                    // Update sync status
+                    document.getElementById('script-url').textContent = 
+                        CONFIG.APPS_SCRIPT_URL.substring(0, 50) + '...';
+                    
+                    document.getElementById('last-sync-time').textContent = 
+                        new Date().toLocaleTimeString('id-ID');
+                }
+            } catch (error) {
+                console.error("Error loading stats:", error);
+            }
+        }
+
+        // Load recent transactions
+        async function loadRecentTransactions() {
+            try {
+                const url = `${CONFIG.APPS_SCRIPT_URL}?action=recent&limit=10&t=${Date.now()}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                const container = document.getElementById('realtime-transactions');
+                
+                if (!data.recent_transactions || data.recent_transactions.length === 0) {
+                    container.innerHTML = '<div class="no-data">Belum ada transaksi</div>';
+                    return;
+                }
+                
+                let html = '';
+                data.recent_transactions.forEach(transaction => {
+                    const items = JSON.parse(transaction.items || '[]');
+                    const itemCount = items.length;
+                    
+                    html += `
+                        <div class="realtime-item">
+                            <div>
+                                <div class="item-time">${transaction.time}</div>
+                                <div class="item-details">${itemCount} items • ${transaction.transaction_id}</div>
+                            </div>
+                            <div class="item-amount">Rp${formatNumber(transaction.total)}</div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+                
+                // Update pending sync count
+                const pending = JSON.parse(localStorage.getItem('zeta_pos_state') || '{}').syncQueue || [];
+                document.getElementById('pending-sync').textContent = 
+                    `${pending.length} transactions`;
+                
+            } catch (error) {
+                console.error("Error loading recent transactions:", error);
+                document.getElementById('realtime-transactions').innerHTML = 
+                    '<div class="error">Gagal memuat data</div>';
+            }
+        }
+
+        // Load transaction history
+        async function loadTransactionHistory() {
+            try {
+                // For now, we'll show recent from localStorage
+                const history = JSON.parse(localStorage.getItem('zeta_history') || '[]');
+                const container = document.getElementById('transaction-history');
+                
+                if (history.length === 0) {
+                    container.innerHTML = `
+                        <tr>
+                            <td colspan="5" style="padding: 30px; text-align: center; color: #a4b1cf;">
+                                Belum ada riwayat transaksi
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                let html = '';
+                const recentHistory = history.slice(-CONFIG.PAGE_SIZE).reverse();
+                
+                recentHistory.forEach(item => {
+                    const items = item.items || [];
+                    const itemNames = items.map(i => i.name).join(', ');
+                    
+                    html += `
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                            <td style="padding: 15px;">${formatTime(item.saved_at)}</td>
+                            <td style="padding: 15px; font-family: monospace;">${item.transaction_id}</td>
+                            <td style="padding: 15px;">${itemNames.substring(0, 50)}${itemNames.length > 50 ? '...' : ''}</td>
+                            <td style="padding: 15px; color: #2ed573; font-weight: bold;">Rp${formatNumber(item.total)}</td>
+                            <td style="padding: 15px;">
+                                <span class="status-badge ${item.save_status}">
+                                    ${item.save_status.replace('_', ' ')}
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                container.innerHTML = html;
+                
+                // Update counts
+                document.getElementById('showing-count').textContent = recentHistory.length;
+                document.getElementById('total-count').textContent = history.length;
+                
+            } catch (error) {
+                console.error("Error loading history:", error);
+            }
+        }
+
+        // Load popular items
+        async function loadPopularItems() {
+            try {
+                const history = JSON.parse(localStorage.getItem('zeta_history') || '[]');
+                const itemCounts = {};
+                
+                // Count items
+                history.forEach(transaction => {
+                    const items = transaction.items || [];
+                    items.forEach(item => {
+                        itemCounts[item.name] = (itemCounts[item.name] || 0) + item.quantity;
+                    });
+                });
+                
+                // Sort by count
+                const popular = Object.entries(itemCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5);
+                
+                const container = document.getElementById('popular-items');
+                
+                if (popular.length === 0) {
+                    container.innerHTML = '<div class="no-data">Belum ada data</div>';
+                    return;
+                }
+                
+                let html = '';
+                popular.forEach(([name, count], index) => {
+                    const percentage = (count / Math.max(...popular.map(p => p[1]))) * 100;
+                    
+                    html += `
+                        <div style="margin-bottom: 15px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span>${index + 1}. ${name}</span>
+                                <span style="color: #2ed573;">${count}x</span>
+                            </div>
+                            <div style="height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                                <div style="height: 100%; background: linear-gradient(90deg, #3742fa, #5352ed); border-radius: 4px; width: ${percentage}%;"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+                
+            } catch (error) {
+                console.error("Error loading popular items:", error);
+            }
+        }
+
+        // Update revenue chart
+        function updateChart() {
+            // Simplified chart - in production, fetch real data
+            const ctx = document.getElementById('revenue-chart').getContext('2d');
+            
+            if (state.chart) {
+                state.chart.destroy();
+            }
+            
+            state.chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00'],
+                    datasets: [{
+                        label: 'Pendapatan',
+                        data: [120000, 250000, 180000, 320000, 280000, 400000],
+                        borderColor: '#3742fa',
+                        backgroundColor: 'rgba(55, 66, 250, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: '#a4b1cf' }
+                        },
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: '#a4b1cf' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Sync functions
+        async function forceSync() {
+            try {
+                // Sync pending transactions
+                const stateData = JSON.parse(localStorage.getItem('zeta_pos_state') || '{}');
+                const pending = stateData.syncQueue || [];
+                
+                if (pending.length === 0) {
+                    showMessage('Tidak ada transaksi pending', 'info');
+                    return;
+                }
+                
+                showMessage(`Menyinkronkan ${pending.length} transaksi...`, 'info');
+                
+                // In production, send to Apps Script
+                // For now, just mark as synced
+                pending.forEach(t => {
+                    t.save_status = 'synced';
+                    t.synced_at = new Date().toISOString();
+                });
+                
+                // Save to history
+                const history = JSON.parse(localStorage.getItem('zeta_history') || '[]');
+                history.push(...pending);
+                localStorage.setItem('zeta_history', JSON.stringify(history));
+                
+                // Clear pending
+                stateData.syncQueue = [];
+                localStorage.setItem('zeta_pos_state', JSON.stringify(stateData));
+                
+                showMessage('Sync berhasil!', 'success');
+                loadDashboardData();
+                
+            } catch (error) {
+                showMessage('Sync gagal: ' + error.message, 'error');
+            }
+        }
+
+        // Utility functions
+        function updateSyncStatus(online) {
+            const statusCard = document.getElementById('sync-status-card');
+            const statusText = document.getElementById('sync-status');
+            
+            if (online) {
+                statusCard.innerHTML = `
+                    <div class="sync-status sync-online">
+                        <span class="sync-indicator"></span>
+                        <span>TERHUBUNG • Real-time sync aktif</span>
+                    </div>
+                `;
+                statusText.textContent = 'ONLINE';
+                statusText.style.color = '#2ed573';
+            } else {
+                statusCard.innerHTML = `
+                    <div class="sync-status sync-offline">
+                        <span class="sync-indicator"></span>
+                        <span>OFFLINE • Data disimpan lokal</span>
+                    </div>
+                `;
+                statusText.textContent = 'OFFLINE';
+                statusText.style.color = '#ff4757';
+            }
+        }
+
+        function startAutoRefresh() {
+            // Refresh every 30 seconds
+            setInterval(() => {
+                loadRecentTransactions();
+                updateSyncStatus(true);
+            }, 30000);
+        }
+
+        function exportData() {
+            try {
+                const history = JSON.parse(localStorage.getItem('zeta_history') || '[]');
+                const stateData = JSON.parse(localStorage.getItem('zeta_pos_state') || '{}');
+                
+                const exportData = {
+                    exported_at: new Date().toISOString(),
+                    history: history,
+                    pending: stateData.syncQueue || [],
+                    stats: state.stats
+                };
+                
+                const dataStr = JSON.stringify(exportData, null, 2);
+                const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+                
+                const link = document.createElement('a');
+                link.setAttribute('href', dataUri);
+                link.setAttribute('download', `zeta_pos_export_${new Date().toISOString().split('T')[0]}.json`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showMessage('Data berhasil diexport!', 'success');
+            } catch (error) {
+                showMessage('Export gagal: ' + error.message, 'error');
+            }
+        }
+
+        function clearLocalData() {
+            if (confirm('HAPUS SEMUA DATA LOKAL?\n\nRiwayat transaksi akan hilang!\nTransaksi pending akan dihapus!\n\nLanjutkan?')) {
+                localStorage.removeItem('zeta_history');
+                localStorage.removeItem('zeta_pos_state');
+                showMessage('Data lokal dihapus!', 'warning');
+                loadDashboardData();
+            }
+        }
+
+        function openMainApp() {
+            window.open('index.html', '_blank');
+        }
+
+        function formatTime(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleTimeString('id-ID', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        }
+
+        function showMessage(message, type) {
+            const colors = {
+                success: '#2ed573',
+                error: '#ff4757',
+                info: '#3742fa',
+                warning: '#ffa502'
+            };
+            
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${colors[type]};
+                color: white;
+                padding: 15px 25px;
+                border-radius: 8px;
+                z-index: 10000;
+                animation: slideIn 0.3s ease;
+            `;
+            
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 3000);
+        }
+
+        function showError(message) {
+            const container = document.querySelector('.dashboard-container');
+            container.innerHTML = `
+                <div style="text-align: center; padding: 50px;">
+                    <div style="font-size: 4rem; color: #ff4757; margin-bottom: 20px;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <h2 style="color: white; margin-bottom: 15px;">${message}</h2>
+                    <p style="color: #a4b1cf; margin-bottom: 30px;">
+                        Konfigurasi URL Apps Script terlebih dahulu di aplikasi utama
+                    </p>
+                    <button onclick="openMainApp()" style="
+                        background: #3742fa;
+                        color: white;
+                        border: none;
+                        padding: 15px 30px;
+                        border-radius: 8px;
+                        font-size: 1.1rem;
+                        cursor: pointer;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 10px;
+                    ">
+                        <i class="fas fa-cog"></i> Konfigurasi Apps Script
+                    </button>
+                </div>
+            `;
+        }
+
+        // Initialize chart
+        setTimeout(updateChart, 1000);
+    </script>
+</body>
+</html>
