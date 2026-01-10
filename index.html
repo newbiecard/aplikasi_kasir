@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZETA POS - Sistem Kasir Brutal</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header class="main-header">
+            <h1><i class="fas fa-cash-register"></i> ZETA POS <span class="badge">LEGAL DI ZETA</span></h1>
+            <p class="tagline">Transaksi cepat, data langsung ke sheet. Tanpa batas.</p>
+        </header>
+
+        <div class="main-grid">
+            <!-- Bagian Input Pesanan -->
+            <section class="input-section card">
+                <h2><i class="fas fa-utensils"></i> MENU FOKUS</h2>
+                
+                <!-- Menu Makanan -->
+                <div class="menu-group">
+                    <h3>🍚 NASI DAUN JERUK</h3>
+                    <div class="menu-item">
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="menu-nasi" data-harga="10000">
+                            <span class="checkmark"></span>
+                            Nasi Daun Jeruk (Dasar)
+                        </label>
+                        <span class="harga">Rp10.000</span>
+                    </div>
+                    
+                    <h4 class="topping-title">🔥 TOPPING TAMBAHAN:</h4>
+                    <div class="menu-item">
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="topping-ayam" data-harga="0" data-topping>
+                            <span class="checkmark"></span>
+                            Ayam Suwir
+                        </label>
+                        <span class="harga">+Rp0</span>
+                    </div>
+                    
+                    <div class="menu-item">
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="topping-kulit" data-harga="0" data-topping>
+                            <span class="checkmark"></span>
+                            Kulit Ayam Krispi
+                        </label>
+                        <span class="harga">+Rp0</span>
+                    </div>
+                    
+                    <div class="menu-item highlight">
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="paket-lengkap" data-harga="12000">
+                            <span class="checkmark"></span>
+                            PAKET LENGKAP (Nasi + Ayam + Kulit)
+                        </label>
+                        <span class="harga">Rp12.000</span>
+                    </div>
+                </div>
+                
+                <!-- Menu Minuman -->
+                <div class="menu-group">
+                    <h3>🧊 MINUMAN</h3>
+                    <div class="menu-item">
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="menu-esjeruk" data-harga="5000">
+                            <span class="checkmark"></span>
+                            Es Jeruk Peras
+                        </label>
+                        <span class="harga">Rp5.000</span>
+                    </div>
+                </div>
+                
+                <!-- Input Jumlah -->
+                <div class="input-group">
+                    <label for="jumlah"><i class="fas fa-hashtag"></i> JUMLAH PESANAN:</label>
+                    <div class="jumlah-control">
+                        <button class="btn-jumlah" id="kurang">-</button>
+                        <input type="number" id="jumlah" value="1" min="1" max="99">
+                        <button class="btn-jumlah" id="tambah">+</button>
+                    </div>
+                </div>
+                
+                <!-- Tombol Tambah ke Daftar -->
+                <button id="btn-tambah" class="btn-action primary">
+                    <i class="fas fa-cart-plus"></i> TAMBAH KE DAFTAR
+                </button>
+            </section>
+
+            <!-- Daftar Pesanan & Kalkulasi -->
+            <section class="order-section card">
+                <h2><i class="fas fa-receipt"></i> DAFTAR PESANAN</h2>
+                
+                <div class="table-container">
+                    <table id="tabel-pesanan">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Jml</th>
+                                <th>Harga</th>
+                                <th>Subtotal</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="daftar-pesanan">
+                            <!-- Item akan muncul di sini -->
+                            <tr class="empty-row">
+                                <td colspan="5">Belum ada pesanan. Tambahkan item!</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Total & Pembayaran -->
+                <div class="total-section">
+                    <div class="total-row">
+                        <span>TOTAL:</span>
+                        <span id="total-harga">Rp0</span>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="uang-bayar"><i class="fas fa-money-bill-wave"></i> UANG BAYAR:</label>
+                        <input type="number" id="uang-bayar" placeholder="Masukkan jumlah" min="0">
+                    </div>
+                    
+                    <div class="total-row highlight">
+                        <span>KEMBALIAN:</span>
+                        <span id="kembalian">Rp0</span>
+                    </div>
+                    
+                    <!-- Tombol Aksi -->
+                    <div class="action-buttons">
+                        <button id="btn-reset" class="btn-action danger">
+                            <i class="fas fa-trash"></i> RESET SEMUA
+                        </button>
+                        <button id="btn-simpan" class="btn-action success" disabled>
+                            <i class="fas fa-paper-plane"></i> SIMPAN TRANSAKSI
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Notifikasi -->
+                <div id="notifikasi" class="notifikasi"></div>
+            </section>
+        </div>
+
+        <footer>
+            <p>🔥 <strong>ZETA POS v1.0</strong> | Data langsung masuk ke Sheet. Tidak ada backup. Tidak ada ampun.</p>
+            <p class="warning">⚠️ Uang kurang? Transaksi batal. Sistem tidak kompromi.</p>
+        </footer>
+    </div>
+
+    <!-- Dialog Sukses -->
+    <div id="dialog-sukses" class="dialog">
+        <div class="dialog-content">
+            <div class="dialog-header success">
+                <i class="fas fa-check-circle"></i> TRANSAKSI BERHASIL!
+            </div>
+            <div class="dialog-body">
+                <p>Data sudah masuk ke Sheet. <strong>Uang sudah diambil.</strong> Transaksi selesai.</p>
+                <div class="dialog-detail">
+                    <p><strong>Total:</strong> <span id="dialog-total">Rp0</span></p>
+                    <p><strong>Kembalian:</strong> <span id="dialog-kembalian">Rp0</span></p>
+                </div>
+            </div>
+            <div class="dialog-footer">
+                <button id="dialog-tutup" class="btn-action primary">TUTUP</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
