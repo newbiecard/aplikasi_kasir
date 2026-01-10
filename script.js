@@ -559,7 +559,7 @@ function saveConfig() {
     
     // Validate URL format
     if (!scriptUrl.includes('script.google.com/macros/s/') || !scriptUrl.includes('/exec')) {
-        if (!confirm('URL tidak sesuai format standar.\nFormat: https://script.google.com/macros/s/.../exec\n\nLanjutkan tetap menyimpan?')) {
+        if (!confirm('URL tidak sesuai format standar.\nFormat: https://script.google.com/macros/s/AKfycbx2urKusuT3u8E6kb90KH5_6ABqQ5mepcDL54gu56va66mW8ucTiyN3ZBS0k3uUq5fv/exec\n\nLanjutkan tetap menyimpan?')) {
             return;
         }
     }
