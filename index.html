@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nasi Daun Jeruk POS v2 | Sistem Kasir Modern</title>
+    <title>Nasi Daun Jeruk POS v3 | QRIS & Paket Hemat</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/responsive.css">
     <link rel="icon" type="image/png" href="assets/leaf-icon.png">
+    <link rel="manifest" href="manifest.json">
 </head>
 <body>
     <!-- Navigation -->
@@ -17,7 +18,7 @@
                 <i class="fas fa-leaf"></i>
                 <div>
                     <h1>Nasi Daun Jeruk</h1>
-                    <p class="tagline">POS System v2.0</p>
+                    <p class="tagline">POS System v3.0 with QRIS</p>
                 </div>
             </div>
             
@@ -47,93 +48,158 @@
                 <!-- Menu Section -->
                 <section class="menu-section card">
                     <div class="section-header">
-                        <h2><i class="fas fa-utensils"></i> Menu</h2>
+                        <h2><i class="fas fa-utensils"></i> Menu & Paket</h2>
                         <div class="total-cart">
                             <span id="itemCount">0</span> item
                         </div>
                     </div>
 
-                    <!-- Main Item -->
-                    <div class="main-item card highlight">
-                        <div class="item-info">
-                            <h3>Nasi Daun Jeruk</h3>
-                            <p class="item-desc">Nasi wangi daun jeruk dengan rempah spesial</p>
-                            <div class="price-tag">
-                                <span class="price">Rp 10.000</span>
-                                <span class="base">Dasar</span>
-                            </div>
-                        </div>
-                        <button class="add-main-btn" id="addNasi">
-                            <i class="fas fa-plus-circle"></i> Tambah
-                        </button>
-                    </div>
-
-                    <!-- Toppings Section -->
-                    <div class="toppings-section">
-                        <h3 class="subtitle"><i class="fas fa-pepper-hot"></i> Pilih Topping</h3>
-                        <p class="note">Pilih salah satu atau kedua topping (tambahan Rp 2.000)</p>
+                    <!-- Regular Menu -->
+                    <div class="menu-category">
+                        <h3 class="category-title">
+                            <i class="fas fa-hamburger"></i> Menu Reguler
+                            <span class="badge">Pilih 1 topping</span>
+                        </h3>
                         
-                        <div class="toppings-grid">
-                            <div class="topping-item card" data-topping="ayam">
-                                <div class="topping-select">
-                                    <input type="checkbox" id="toppingAyam" class="topping-checkbox">
-                                    <label for="toppingAyam"></label>
+                        <!-- Nasi + 1 Topping -->
+                        <div class="menu-item card highlight">
+                            <div class="item-badge">🔥 Terlaris</div>
+                            <div class="item-info">
+                                <h3>Nasi Daun Jeruk + 1 Topping</h3>
+                                <p class="item-desc">Nasi wangi daun jeruk dengan pilihan 1 topping (Ayam Suwir atau Kulit Crispy)</p>
+                                <div class="price-tag">
+                                    <span class="price">Rp 10.000</span>
+                                    <span class="discount-badge">Harga Normal</span>
                                 </div>
-                                <div class="topping-info">
-                                    <h4>Ayam Suwir Pedas</h4>
-                                    <p class="topping-desc">Ayam suwir dengan sambal matah</p>
+                                
+                                <div class="topping-selection">
+                                    <div class="topping-option">
+                                        <input type="radio" id="toppingAyam" name="topping" value="ayam">
+                                        <label for="toppingAyam" class="topping-label">
+                                            <i class="fas fa-drumstick-bite"></i>
+                                            <span>Ayam Suwir Pedas</span>
+                                        </label>
+                                    </div>
+                                    <div class="topping-option">
+                                        <input type="radio" id="toppingKulit" name="topping" value="kulit">
+                                        <label for="toppingKulit" class="topping-label">
+                                            <i class="fas fa-bacon"></i>
+                                            <span>Kulit Ayam Crispy</span>
+                                        </label>
+                                    </div>
                                 </div>
-                                <div class="topping-price">+ Rp 2.000</div>
                             </div>
-
-                            <div class="topping-item card" data-topping="kulit">
-                                <div class="topping-select">
-                                    <input type="checkbox" id="toppingKulit" class="topping-checkbox">
-                                    <label for="toppingKulit"></label>
-                                </div>
-                                <div class="topping-info">
-                                    <h4>Kulit Ayam Crispy</h4>
-                                    <p class="topping-desc">Kulit ayam krispi renyah</p>
-                                </div>
-                                <div class="topping-price">+ Rp 2.000</div>
-                            </div>
-                        </div>
-
-                        <div class="topping-total">
-                            <span>Total Tambahan:</span>
-                            <span id="toppingTotal">Rp 0</span>
+                            <button class="add-btn" id="addRegular">
+                                <i class="fas fa-plus-circle"></i> Tambah
+                            </button>
                         </div>
                     </div>
 
-                    <!-- Drinks Section -->
-                    <div class="drinks-section">
-                        <h3 class="subtitle"><i class="fas fa-glass-whiskey"></i> Minuman</h3>
-                        <div class="drinks-grid">
-                            <div class="drink-item card">
-                                <div class="drink-info">
-                                    <h4>Es Jeruk Peras</h4>
-                                    <p class="drink-desc">Jeruk peras asli dengan es</p>
+                    <!-- Paket Lengkap -->
+                    <div class="menu-category">
+                        <h3 class="category-title">
+                            <i class="fas fa-crown"></i> Paket Lengkap
+                            <span class="badge premium">Dua Topping</span>
+                        </h3>
+                        
+                        <!-- Paket 2 Topping -->
+                        <div class="menu-item card premium">
+                            <div class="item-badge">⭐ Premium</div>
+                            <div class="item-info">
+                                <h3>Paket Lengkap (2 Topping)</h3>
+                                <p class="item-desc">Nasi daun jeruk dengan kedua topping (Ayam Suwir + Kulit Crispy)</p>
+                                <div class="price-tag">
+                                    <span class="price">Rp 12.000</span>
+                                    <span class="discount-badge">Hemat Rp 2.000</span>
                                 </div>
-                                <div class="drink-controls">
-                                    <button class="qty-btn minus" data-drink="jeruk">-</button>
-                                    <span class="drink-qty" id="qtyJeruk">0</span>
-                                    <button class="qty-btn plus" data-drink="jeruk">+</button>
+                                <div class="package-features">
+                                    <span class="feature"><i class="fas fa-check"></i> Ayam Suwir</span>
+                                    <span class="feature"><i class="fas fa-check"></i> Kulit Crispy</span>
                                 </div>
-                                <div class="drink-price">Rp 5.000</div>
                             </div>
+                            <button class="add-btn premium-btn" id="addPremium">
+                                <i class="fas fa-crown"></i> Tambah Paket
+                            </button>
+                        </div>
 
-                            <div class="drink-item card">
-                                <div class="drink-info">
-                                    <h4>Teh Es Manis</h4>
-                                    <p class="drink-desc">Teh manis dingin segar</p>
+                        <!-- Paket Hemat -->
+                        <div class="menu-item card discount">
+                            <div class="item-badge">💎 Hemat</div>
+                            <div class="item-info">
+                                <h3>Paket Hemat Nasi + Es Jeruk</h3>
+                                <p class="item-desc">Nasi dengan 1 topping + Es Jeruk Peras (Hemat Rp 2.000)</p>
+                                <div class="price-tag">
+                                    <span class="old-price">Rp 15.000</span>
+                                    <span class="price">Rp 13.000</span>
+                                    <span class="discount-badge">Hemat 13%</span>
                                 </div>
-                                <div class="drink-controls">
-                                    <button class="qty-btn minus" data-drink="teh">-</button>
-                                    <span class="drink-qty" id="qtyTeh">0</span>
-                                    <button class="qty-btn plus" data-drink="teh">+</button>
+                                <div class="package-features">
+                                    <span class="feature"><i class="fas fa-check"></i> Nasi + 1 Topping</span>
+                                    <span class="feature"><i class="fas fa-check"></i> Es Jeruk Peras</span>
                                 </div>
-                                <div class="drink-price">Rp 3.000</div>
+                                
+                                <div class="topping-selection">
+                                    <div class="topping-option">
+                                        <input type="radio" id="paketAyam" name="paketTopping" value="ayam">
+                                        <label for="paketAyam" class="topping-label">
+                                            <i class="fas fa-drumstick-bite"></i>
+                                            <span>Ayam Suwir</span>
+                                        </label>
+                                    </div>
+                                    <div class="topping-option">
+                                        <input type="radio" id="paketKulit" name="paketTopping" value="kulit">
+                                        <label for="paketKulit" class="topping-label">
+                                            <i class="fas fa-bacon"></i>
+                                            <span>Kulit Crispy</span>
+                                        </label>
+                                    </div>
+                                </div>
                             </div>
+                            <button class="add-btn discount-btn" id="addPaketHemat">
+                                <i class="fas fa-tags"></i> Tambah Paket
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Minuman -->
+                    <div class="menu-category">
+                        <h3 class="category-title">
+                            <i class="fas fa-glass-whiskey"></i> Minuman
+                        </h3>
+                        
+                        <!-- Es Jeruk Peras -->
+                        <div class="drink-item card">
+                            <div class="drink-info">
+                                <h4>Es Jeruk Peras</h4>
+                                <p class="drink-desc">Jeruk peras asli dengan es segar</p>
+                                <div class="price-tag small">
+                                    <span class="price">Rp 5.000</span>
+                                </div>
+                            </div>
+                            <div class="drink-controls">
+                                <button class="qty-btn minus" data-drink="jeruk">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <span class="drink-qty" id="qtyJeruk">0</span>
+                                <button class="qty-btn plus" data-drink="jeruk">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cart Preview -->
+                    <div class="cart-preview card">
+                        <h4><i class="fas fa-shopping-basket"></i> Ringkasan Pesanan</h4>
+                        <div class="preview-items" id="previewItems">
+                            <div class="empty-preview">
+                                <i class="fas fa-shopping-cart"></i>
+                                <p>Belum ada pesanan</p>
+                            </div>
+                        </div>
+                        <div class="preview-total">
+                            <span>Subtotal:</span>
+                            <span id="previewTotal">Rp 0</span>
                         </div>
                     </div>
                 </section>
@@ -141,82 +207,159 @@
                 <!-- Cart & Payment Section -->
                 <section class="cart-section card">
                     <div class="section-header">
-                        <h2><i class="fas fa-shopping-cart"></i> Pesanan</h2>
+                        <h2><i class="fas fa-shopping-cart"></i> Detail Pesanan</h2>
                         <button id="clearCart" class="clear-btn">
                             <i class="fas fa-trash"></i> Kosongkan
                         </button>
                     </div>
 
-                    <!-- Order Summary -->
-                    <div class="order-summary">
+                    <!-- Order Details -->
+                    <div class="order-details">
                         <div class="order-items" id="orderItems">
                             <!-- Items will be dynamically added here -->
                             <div class="empty-order">
-                                <i class="fas fa-shopping-basket"></i>
-                                <p>Belum ada pesanan</p>
-                                <small>Tambahkan item dari menu</small>
+                                <i class="fas fa-receipt"></i>
+                                <h4>Keranjang Kosong</h4>
+                                <p>Tambahkan item dari menu untuk memulai transaksi</p>
                             </div>
                         </div>
 
-                        <!-- Price Breakdown -->
-                        <div class="price-breakdown">
-                            <div class="price-row">
-                                <span>Nasi Daun Jeruk</span>
-                                <span id="nasiPrice">Rp 0</span>
+                        <!-- Order Summary -->
+                        <div class="order-summary card">
+                            <h3><i class="fas fa-calculator"></i> Ringkasan Pembayaran</h3>
+                            
+                            <div class="summary-row">
+                                <span>Subtotal:</span>
+                                <span id="subtotal">Rp 0</span>
                             </div>
-                            <div class="price-row">
-                                <span>Topping Tambahan</span>
-                                <span id="toppingPrice">Rp 0</span>
+                            <div class="summary-row">
+                                <span>Diskon Paket:</span>
+                                <span id="discount">- Rp 0</span>
                             </div>
-                            <div class="price-row">
-                                <span>Minuman</span>
-                                <span id="drinkPrice">Rp 0</span>
-                            </div>
-                            <div class="price-row total">
-                                <span><strong>TOTAL</strong></span>
+                            <div class="summary-row total">
+                                <span><strong>TOTAL:</strong></span>
                                 <span id="finalTotal"><strong>Rp 0</strong></span>
                             </div>
                         </div>
 
-                        <!-- Payment Section -->
-                        <div class="payment-section">
-                            <h3><i class="fas fa-money-bill-wave"></i> Pembayaran</h3>
+                        <!-- Payment Methods -->
+                        <div class="payment-methods card">
+                            <h3><i class="fas fa-wallet"></i> Metode Pembayaran</h3>
                             
-                            <div class="payment-input-group">
-                                <label for="cashInput">Uang Tunai</label>
-                                <div class="input-with-icon">
-                                    <i class="fas fa-rupiah-sign"></i>
-                                    <input type="number" id="cashInput" placeholder="Masukkan jumlah uang" min="0">
+                            <div class="method-tabs">
+                                <button class="method-tab active" data-method="cash">
+                                    <i class="fas fa-money-bill-wave"></i> Tunai
+                                </button>
+                                <button class="method-tab" data-method="qris">
+                                    <i class="fas fa-qrcode"></i> QRIS
+                                </button>
+                            </div>
+
+                            <!-- Cash Payment -->
+                            <div class="payment-method active" id="cashMethod">
+                                <div class="payment-input">
+                                    <label for="cashAmount">
+                                        <i class="fas fa-money-bill"></i> Jumlah Uang
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-prefix">Rp</span>
+                                        <input type="number" id="cashAmount" placeholder="Masukkan jumlah uang" min="0">
+                                    </div>
+                                </div>
+
+                                <!-- Quick Amount Buttons -->
+                                <div class="quick-amounts">
+                                    <button class="amount-btn" data-amount="10000">10.000</button>
+                                    <button class="amount-btn" data-amount="20000">20.000</button>
+                                    <button class="amount-btn" data-amount="50000">50.000</button>
+                                    <button class="amount-btn" data-amount="100000">100.000</button>
+                                </div>
+
+                                <!-- Change Display -->
+                                <div class="change-display" id="cashChange">
+                                    <div class="change-label">
+                                        <i class="fas fa-exchange-alt"></i>
+                                        <span>Kembalian:</span>
+                                    </div>
+                                    <div class="change-amount" id="cashChangeAmount">Rp 0</div>
                                 </div>
                             </div>
 
-                            <!-- Quick Cash Buttons -->
-                            <div class="quick-cash">
-                                <button class="cash-btn" data-amount="10000">Rp 10.000</button>
-                                <button class="cash-btn" data-amount="20000">Rp 20.000</button>
-                                <button class="cash-btn" data-amount="50000">Rp 50.000</button>
-                                <button class="cash-btn" data-amount="100000">Rp 100.000</button>
-                            </div>
+                            <!-- QRIS Payment -->
+                            <div class="payment-method" id="qrisMethod">
+                                <div class="qris-container">
+                                    <div class="qris-info">
+                                        <h4><i class="fas fa-mobile-alt"></i> Bayar dengan QRIS</h4>
+                                        <p>Scan QR code di bawah menggunakan aplikasi e-wallet atau mobile banking</p>
+                                        
+                                        <div class="qris-total">
+                                            <span>Total Pembayaran:</span>
+                                            <span class="total-amount" id="qrisTotal">Rp 0</span>
+                                        </div>
+                                    </div>
 
-                            <!-- Change Display -->
-                            <div class="change-display" id="changeDisplay">
-                                <div class="change-label">
-                                    <i class="fas fa-exchange-alt"></i>
-                                    <span>Kembalian</span>
+                                    <!-- QR Code Display -->
+                                    <div class="qris-code">
+                                        <div class="qris-placeholder" id="qrisPlaceholder">
+                                            <i class="fas fa-qrcode"></i>
+                                            <p>QR Code akan muncul setelah memasukkan pesanan</p>
+                                        </div>
+                                        <canvas id="qrisCanvas" style="display: none;"></canvas>
+                                        <img id="qrisImage" style="display: none;" alt="QRIS Code">
+                                    </div>
+
+                                    <!-- Payment Instructions -->
+                                    <div class="qris-instructions">
+                                        <h5><i class="fas fa-info-circle"></i> Cara Pembayaran:</h5>
+                                        <ol>
+                                            <li>Buka aplikasi e-wallet atau mobile banking</li>
+                                            <li>Pilih fitur scan QRIS</li>
+                                            <li>Arahkan kamera ke kode QR</li>
+                                            <li>Konfirmasi jumlah pembayaran</li>
+                                            <li>Tunggu notifikasi pembayaran sukses</li>
+                                        </ol>
+                                    </div>
+
+                                    <!-- Payment Status -->
+                                    <div class="payment-status" id="paymentStatus">
+                                        <div class="status-waiting">
+                                            <i class="fas fa-clock"></i>
+                                            <span>Menunggu Pembayaran...</span>
+                                        </div>
+                                        <div class="status-success" style="display: none;">
+                                            <i class="fas fa-check-circle"></i>
+                                            <span>Pembayaran Berhasil!</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Manual Confirmation -->
+                                    <div class="manual-confirm">
+                                        <button id="confirmPayment" class="btn-success">
+                                            <i class="fas fa-check"></i> Konfirmasi Pembayaran
+                                        </button>
+                                        <button id="cancelPayment" class="btn-outline">
+                                            <i class="fas fa-times"></i> Batalkan
+                                        </button>
+                                    </div>
                                 </div>
-                                <div class="change-amount" id="changeAmount">Rp 0</div>
                             </div>
 
-                            <!-- Validation Message -->
-                            <div class="validation-msg error" id="errorMsg">
-                                <i class="fas fa-exclamation-circle"></i>
-                                <span>Uang pembayaran kurang!</span>
+                            <!-- Validation Messages -->
+                            <div class="validation-messages">
+                                <div class="alert error" id="cashError" style="display: none;">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    <span>Uang pembayaran kurang!</span>
+                                </div>
+                                <div class="alert success" id="paymentSuccess" style="display: none;">
+                                    <i class="fas fa-check-circle"></i>
+                                    <span>Pembayaran berhasil diproses!</span>
+                                </div>
                             </div>
 
                             <!-- Action Buttons -->
                             <div class="action-buttons">
-                                <button id="processOrder" class="btn-primary btn-large" disabled>
-                                    <i class="fas fa-check-circle"></i> Proses Transaksi
+                                <button id="processPayment" class="btn-primary btn-large" disabled>
+                                    <i class="fas fa-check-circle"></i> Proses Pembayaran
                                 </button>
                                 <button id="printReceipt" class="btn-secondary" disabled>
                                     <i class="fas fa-print"></i> Cetak Struk
@@ -230,89 +373,168 @@
             <!-- Recent Transactions -->
             <div class="recent-transactions card">
                 <h3><i class="fas fa-history"></i> Transaksi Terakhir</h3>
-                <div class="transactions-list" id="recentTransactions">
+                <div class="transactions-grid" id="recentTransactions">
                     <!-- Recent transactions will be added here -->
                     <div class="no-transactions">
-                        Belum ada transaksi hari ini
+                        <i class="fas fa-receipt"></i>
+                        <p>Belum ada transaksi hari ini</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Backup & Reports Page -->
-        <div id="backupPage" class="page">
+        <!-- Reports Page -->
+        <div id="reportsPage" class="page">
             <div class="reports-header">
-                <h2><i class="fas fa-chart-pie"></i> Laporan & Backup</h2>
+                <h2><i class="fas fa-chart-pie"></i> Laporan & Analisis</h2>
                 <div class="report-controls">
-                    <button id="exportExcel" class="btn-success">
+                    <button id="exportReport" class="btn-success">
                         <i class="fas fa-file-excel"></i> Export Excel
                     </button>
-                    <button id="printReport" class="btn-secondary">
-                        <i class="fas fa-print"></i> Cetak Laporan
+                    <button id="refreshReport" class="btn-secondary">
+                        <i class="fas fa-sync-alt"></i> Refresh
                     </button>
                 </div>
             </div>
 
-            <!-- Stats Cards -->
-            <div class="stats-grid">
-                <div class="stat-card income">
+            <!-- Stats Overview -->
+            <div class="stats-overview">
+                <div class="stat-card total-income">
                     <div class="stat-icon">
                         <i class="fas fa-money-bill-wave"></i>
                     </div>
-                    <div class="stat-info">
-                        <div class="stat-value" id="dailyIncome">Rp 0</div>
-                        <div class="stat-label">Pemasukan Hari Ini</div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="totalIncome">Rp 0</div>
+                        <div class="stat-label">Total Pendapatan</div>
+                        <div class="stat-trend">
+                            <i class="fas fa-arrow-up"></i>
+                            <span>Hari ini</span>
+                        </div>
                     </div>
                 </div>
 
-                <div class="stat-card transactions">
+                <div class="stat-card total-transactions">
                     <div class="stat-icon">
                         <i class="fas fa-receipt"></i>
                     </div>
-                    <div class="stat-info">
-                        <div class="stat-value" id="transactionCount">0</div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="totalTransactions">0</div>
                         <div class="stat-label">Total Transaksi</div>
+                        <div class="stat-trend">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Hari ini</span>
+                        </div>
                     </div>
                 </div>
 
-                <div class="stat-card average">
+                <div class="stat-card qris-transactions">
+                    <div class="stat-icon">
+                        <i class="fas fa-qrcode"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="qrisCount">0</div>
+                        <div class="stat-label">Transaksi QRIS</div>
+                        <div class="stat-trend">
+                            <i class="fas fa-mobile-alt"></i>
+                            <span>Digital</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card average-order">
                     <div class="stat-icon">
                         <i class="fas fa-calculator"></i>
                     </div>
-                    <div class="stat-info">
+                    <div class="stat-content">
                         <div class="stat-value" id="averageOrder">Rp 0</div>
                         <div class="stat-label">Rata-rata Pesanan</div>
+                        <div class="stat-trend">
+                            <i class="fas fa-balance-scale"></i>
+                            <span>Per transaksi</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Filters -->
-            <div class="filters-card card">
-                <div class="filter-group">
-                    <div class="filter-item">
-                        <label for="dateFilter"><i class="fas fa-calendar"></i> Filter Tanggal</label>
-                        <input type="date" id="dateFilter" value="">
+            <!-- Sales Chart -->
+            <div class="sales-chart card">
+                <div class="chart-header">
+                    <h3><i class="fas fa-chart-line"></i> Grafik Penjualan</h3>
+                    <select id="chartPeriod" class="chart-select">
+                        <option value="today">Hari Ini</option>
+                        <option value="week">7 Hari Terakhir</option>
+                        <option value="month">Bulan Ini</option>
+                    </select>
+                </div>
+                <div class="chart-container">
+                    <canvas id="salesChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Product Performance -->
+            <div class="product-performance card">
+                <h3><i class="fas fa-chart-bar"></i> Performa Produk</h3>
+                <div class="performance-grid">
+                    <div class="performance-item">
+                        <div class="product-name">Reguler (1 Topping)</div>
+                        <div class="product-stats">
+                            <span class="stat-count" id="countRegular">0</span>
+                            <span class="stat-percent" id="percentRegular">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressRegular"></div>
+                        </div>
                     </div>
-                    <div class="filter-item">
-                        <label for="searchFilter"><i class="fas fa-search"></i> Cari Transaksi</label>
-                        <input type="text" id="searchFilter" placeholder="Cari berdasarkan ID atau item...">
+                    
+                    <div class="performance-item">
+                        <div class="product-name">Paket Lengkap</div>
+                        <div class="product-stats">
+                            <span class="stat-count" id="countPremium">0</span>
+                            <span class="stat-percent" id="percentPremium">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressPremium"></div>
+                        </div>
                     </div>
-                    <button id="clearFilters" class="btn-outline">
-                        <i class="fas fa-times"></i> Reset Filter
-                    </button>
+                    
+                    <div class="performance-item">
+                        <div class="product-name">Paket Hemat</div>
+                        <div class="product-stats">
+                            <span class="stat-count" id="countPaket">0</span>
+                            <span class="stat-percent" id="percentPaket">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressPaket"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="performance-item">
+                        <div class="product-name">Es Jeruk Satuan</div>
+                        <div class="product-stats">
+                            <span class="stat-count" id="countJeruk">0</span>
+                            <span class="stat-percent" id="percentJeruk">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressJeruk"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <!-- Transactions Table -->
             <div class="transactions-table card">
                 <div class="table-header">
-                    <h3>Data Transaksi</h3>
-                    <div class="table-actions">
-                        <button id="deleteSelected" class="btn-danger" disabled>
-                            <i class="fas fa-trash"></i> Hapus Terpilih
-                        </button>
-                        <button id="deleteAll" class="btn-danger">
-                            <i class="fas fa-trash-alt"></i> Hapus Semua
+                    <h3><i class="fas fa-table"></i> Data Transaksi</h3>
+                    <div class="table-controls">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="searchTransactions" placeholder="Cari transaksi...">
+                        </div>
+                        <div class="date-filter">
+                            <input type="date" id="filterDate" value="">
+                        </div>
+                        <button id="clearFilters" class="btn-outline">
+                            <i class="fas fa-times"></i> Reset
                         </button>
                     </div>
                 </div>
@@ -321,22 +543,19 @@
                     <table id="transactionsTable">
                         <thead>
                             <tr>
-                                <th>
-                                    <input type="checkbox" id="selectAll">
-                                </th>
-                                <th>ID Transaksi</th>
+                                <th>ID</th>
                                 <th>Tanggal</th>
                                 <th>Items</th>
-                                <th>Topping</th>
-                                <th>Minuman</th>
+                                <th>Metode</th>
                                 <th>Total</th>
+                                <th>Status</th>
                                 <th>Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="transactionsBody">
                             <!-- Data will be loaded here -->
                             <tr class="no-data">
-                                <td colspan="8">
+                                <td colspan="7">
                                     <i class="fas fa-database"></i>
                                     <p>Belum ada data transaksi</p>
                                 </td>
@@ -344,67 +563,117 @@
                         </tbody>
                     </table>
                 </div>
+
+                <div class="table-footer">
+                    <div class="pagination">
+                        <button id="prevPage" class="pagination-btn" disabled>
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <span class="page-info">Halaman <span id="currentPage">1</span> dari <span id="totalPages">1</span></span>
+                        <button id="nextPage" class="pagination-btn" disabled>
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    <div class="summary-info">
+                        Menampilkan <span id="shownCount">0</span> dari <span id="totalCount">0</span> transaksi
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Receipt Modal -->
     <div id="receiptModal" class="modal">
-        <div class="modal-content receipt-content">
+        <div class="modal-content receipt-modal">
             <div class="receipt-header">
                 <div class="receipt-logo">
                     <i class="fas fa-leaf"></i>
-                    <h3>Nasi Daun Jeruk</h3>
+                    <div>
+                        <h3>Nasi Daun Jeruk</h3>
+                        <p>Sistem POS v3.0 with QRIS</p>
+                    </div>
                 </div>
-                <p>Jl. Jeruk Manis No. 123</p>
-                <p>Telp: (021) 1234-5678</p>
+                <div class="receipt-info">
+                    <p>Jl. Jeruk Manis No. 123</p>
+                    <p>Telp: (021) 1234-5678</p>
+                    <p>www.nasidaunjeruk.com</p>
+                </div>
             </div>
 
             <div class="receipt-body">
-                <div class="receipt-info">
+                <div class="receipt-transaction">
                     <div class="receipt-row">
-                        <span>ID:</span>
-                        <span id="receiptId">TRX-001</span>
+                        <span>ID Transaksi:</span>
+                        <span id="receiptId">TRX-000001</span>
                     </div>
                     <div class="receipt-row">
                         <span>Tanggal:</span>
-                        <span id="receiptDate">01/01/2024 10:00</span>
+                        <span id="receiptDate">01/01/2024 10:00:00</span>
                     </div>
                     <div class="receipt-row">
                         <span>Kasir:</span>
                         <span id="receiptCashier">Admin</span>
                     </div>
+                    <div class="receipt-row">
+                        <span>Metode:</span>
+                        <span id="receiptMethod">Tunai</span>
+                    </div>
+                </div>
+
+                <div class="receipt-divider">
+                    <span>ITEM PESANAN</span>
                 </div>
 
                 <div class="receipt-items" id="receiptItems">
                     <!-- Items will be added here -->
                 </div>
 
+                <div class="receipt-divider"></div>
+
                 <div class="receipt-total">
                     <div class="total-row">
-                        <span>Total:</span>
-                        <span id="receiptTotal">Rp 0</span>
+                        <span>Subtotal:</span>
+                        <span id="receiptSubtotal">Rp 0</span>
                     </div>
                     <div class="total-row">
-                        <span>Tunai:</span>
-                        <span id="receiptCash">Rp 0</span>
+                        <span>Diskon:</span>
+                        <span id="receiptDiscount">- Rp 0</span>
+                    </div>
+                    <div class="total-row grand-total">
+                        <span>TOTAL:</span>
+                        <span id="receiptGrandTotal">Rp 0</span>
+                    </div>
+                    <div class="total-row">
+                        <span>Bayar:</span>
+                        <span id="receiptPaid">Rp 0</span>
                     </div>
                     <div class="total-row change">
-                        <span>Kembali:</span>
+                        <span>KEMBALI:</span>
                         <span id="receiptChange">Rp 0</span>
                     </div>
                 </div>
 
+                <div class="receipt-qris" id="receiptQrisSection" style="display: none;">
+                    <div class="receipt-divider">
+                        <span>PAYMENT QRIS</span>
+                    </div>
+                    <div class="qris-info">
+                        <p><i class="fas fa-check-circle"></i> Pembayaran QRIS Berhasil</p>
+                        <p>ID Pembayaran: <span id="receiptQrisId">QRIS-001</span></p>
+                    </div>
+                </div>
+
                 <div class="receipt-footer">
-                    <p>Terima kasih telah berbelanja</p>
-                    <p class="receipt-note">* Barang yang sudah dibeli tidak dapat dikembalikan</p>
+                    <p class="thank-you">TERIMA KASIH ATAS KUNJUNGAN ANDA</p>
+                    <p class="note">* Barang yang sudah dibeli tidak dapat dikembalikan</p>
+                    <p class="note">* Struk ini sebagai bukti pembayaran yang sah</p>
                 </div>
             </div>
 
             <div class="modal-actions">
                 <button id="closeReceipt" class="btn-secondary">Tutup</button>
                 <button id="printReceiptBtn" class="btn-primary">
-                    <i class="fas fa-print"></i> Cetak
+                    <i class="fas fa-print"></i> Cetak Struk
                 </button>
             </div>
         </div>
@@ -412,15 +681,15 @@
 
     <!-- Confirmation Modal -->
     <div id="confirmModal" class="modal">
-        <div class="modal-content confirm-content">
+        <div class="modal-content confirm-modal">
             <div class="confirm-icon">
                 <i class="fas fa-exclamation-triangle"></i>
             </div>
-            <h3 id="confirmTitle">Konfirmasi Hapus</h3>
-            <p id="confirmMessage">Apakah Anda yakin ingin menghapus data ini?</p>
+            <h3 id="confirmTitle">Konfirmasi</h3>
+            <p id="confirmMessage">Apakah Anda yakin ingin melanjutkan?</p>
             <div class="confirm-actions">
                 <button id="confirmCancel" class="btn-outline">Batal</button>
-                <button id="confirmDelete" class="btn-danger">Hapus</button>
+                <button id="confirmOk" class="btn-primary">Ya, Lanjutkan</button>
             </div>
         </div>
     </div>
@@ -431,26 +700,32 @@
             <div class="footer-info">
                 <div class="footer-logo">
                     <i class="fas fa-leaf"></i>
-                    <span>Nasi Daun Jeruk POS</span>
+                    <span>Nasi Daun Jeruk POS v3.0</span>
                 </div>
-                <p>© 2024 Sistem Kasir Modern v2.0</p>
+                <p>© 2024 Sistem Kasir Modern dengan QRIS | Dibuat untuk UMKM Indonesia</p>
             </div>
-            <div class="footer-stats">
-                <div class="footer-stat">
-                    <i class="fas fa-sync-alt"></i>
-                    <span>Backup Realtime</span>
+            <div class="footer-features">
+                <div class="feature">
+                    <i class="fas fa-qrcode"></i>
+                    <span>QRIS Payment Ready</span>
                 </div>
-                <div class="footer-stat">
-                    <i class="fas fa-shield-alt"></i>
-                    <span>Data Aman</span>
+                <div class="feature">
+                    <i class="fas fa-mobile-alt"></i>
+                    <span>100% Responsive</span>
+                </div>
+                <div class="feature">
+                    <i class="fas fa-cloud"></i>
+                    <span>Auto Backup</span>
                 </div>
             </div>
         </div>
     </footer>
 
     <!-- JavaScript Files -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <script src="js/app.js"></script>
     <script src="js/cart.js"></script>
-    <script src="js/backup.js"></script>
+    <script src="js/payment.js"></script>
 </body>
 </html>
