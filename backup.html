@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backup Transaksi | Nasi Daun Jeruk POS</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/x-icon" href="assets/images/logo.png">
+    
+    <style>
+        /* Additional styles for backup page */
+        .backup-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: var(--space-lg);
+        }
+        
+        .backup-header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: var(--space-2xl);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--space-xl);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .backup-title {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            margin-bottom: var(--space-sm);
+        }
+        
+        .backup-title h1 {
+            color: white;
+            margin-bottom: 0;
+        }
+        
+        .backup-subtitle {
+            opacity: 0.9;
+            font-size: var(--font-size-lg);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: var(--space-lg);
+            margin-bottom: var(--space-xl);
+        }
+        
+        .stat-card {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-xl);
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
+            text-align: center;
+            transition: all var(--transition-normal);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .stat-icon {
+            font-size: 2.5rem;
+            color: var(--primary);
+            margin-bottom: var(--space-md);
+        }
+        
+        .stat-value {
+            font-size: var(--font-size-3xl);
+            font-weight: var(--font-weight-bold);
+            color: var(--text-primary);
+            margin: var(--space-sm) 0;
+        }
+        
+        .stat-label {
+            color: var(--text-tertiary);
+            font-size: var(--font-size-sm);
+        }
+        
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-lg);
+            margin-bottom: var(--space-xl);
+        }
+        
+        .control-card {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+        }
+        
+        .control-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .control-card.export {
+            background: linear-gradient(135deg, var(--success), #2E7D32);
+            color: white;
+            border: none;
+        }
+        
+        .control-card.delete {
+            background: linear-gradient(135deg, var(--error), #D32F2F);
+            color: white;
+            border: none;
+        }
+        
+        .control-icon {
+            font-size: 2rem;
+            margin-bottom: var(--space-md);
+        }
+        
+        .filter-section {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-xl);
+            margin-bottom: var(--space-xl);
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
+        }
+        
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-lg);
+            margin-top: var(--space-lg);
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+        
+        .filter-label {
+            font-weight: var(--font-weight-medium);
+            color: var(--text-secondary);
+        }
+        
+        .filter-input {
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            transition: all var(--transition-fast);
+        }
+        
+        .filter-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+        }
+        
+        .filter-buttons {
+            display: flex;
+            gap: var(--space-md);
+            margin-top: var(--space-lg);
+        }
+        
+        .btn-filter {
+            padding: 10px 24px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            font-weight: var(--font-weight-medium);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all var(--transition-normal);
+        }
+        
+        .btn-filter:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .btn-reset {
+            padding: 10px 24px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            border-radius: var(--radius-md);
+            font-weight: var(--font-weight-medium);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all var(--transition-fast);
+        }
+        
+        .btn-reset:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+        
+        .transactions-table {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
+            margin-bottom: var(--space-xl);
+        }
+        
+        .table-header {
+            background: var(--bg-tertiary);
+            padding: var(--space-lg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+        
+        th {
+            background: var(--bg-tertiary);
+            padding: var(--space-lg);
+            text-align: left;
+            font-weight: var(--font-weight-semibold);
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+        
+        td {
+            padding: var(--space-md) var(--space-lg);
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        tr:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .method-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: var(--radius-full);
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-semibold);
+        }
+        
+        .method-cash {
+            background: rgba(var(--primary-rgb), 0.1);
+            color: var(--primary);
+        }
+        
+        .method-qris {
+            background: rgba(33, 150, 243, 0.1);
+            color: #2196F3;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: var(--space-sm);
+        }
+        
+        .btn-action {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition-fast);
+        }
+        
+        .btn-action:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        
+        .btn-action.delete {
+            color: var(--error);
+            border-color: rgba(244, 67, 54, 0.2);
+        }
+        
+        .btn-action.delete:hover {
+            background: rgba(244, 67, 54, 0.1);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: var(--space-2xl);
+            color: var(--text-tertiary);
+        }
+        
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: var(--space-lg);
+            opacity: 0.3;
+        }
+        
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            text-decoration: none;
+            border-radius: var(--radius-md);
+            margin-bottom: var(--space-lg);
+            transition: all var(--transition-fast);
+        }
+        
+        .back-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateX(-3px);
+        }
+        
+        @media (max-width: 768px) {
+            .backup-container {
+                padding: var(--space-md);
+            }
+            
+            .stats-grid,
+            .controls-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+            
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            th, td {
+                padding: var(--space-sm);
+            }
+        }
+    </style>
+</head>
+<body data-theme="light">
+    <div class="backup-container">
+        <!-- Header -->
+        <div class="backup-header">
+            <a href="index.html" class="back-button">
+                <i class="fas fa-arrow-left"></i> Kembali ke Kasir
+            </a>
+            <div class="backup-title">
+                <i class="fas fa-database fa-2x"></i>
+                <div>
+                    <h1>Manajemen Backup Transaksi</h1>
+                    <p class="backup-subtitle">Kelola dan backup semua data transaksi</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-list-alt"></i>
+                </div>
+                <div class="stat-value" id="totalTransactionsCount">0</div>
+                <div class="stat-label">Total Transaksi</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-money-bill-wave"></i>
+                </div>
+                <div class="stat-value" id="totalIncome">Rp 0</div>
+                <div class="stat-label">Total Pemasukan</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-calendar-day"></i>
+                </div>
+                <div class="stat-value" id="todayTransactions">0</div>
+                <div class="stat-label">Transaksi Hari Ini</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-qrcode"></i>
+                </div>
+                <div class="stat-value" id="qrisPercentage">0%</div>
+                <div class="stat-label">Penggunaan QRIS</div>
+            </div>
+        </div>
+        
+        <!-- Control Cards -->
+        <div class="controls-grid">
+            <div class="control-card" onclick="createBackup()">
+                <div class="control-icon">
+                    <i class="fas fa-save"></i>
+                </div>
+                <h3>Backup Manual</h3>
+                <p>Simpan salinan data ke file</p>
+            </div>
+            
+            <div class="control-card export" onclick="exportToCSV()">
+                <div class="control-icon">
+                    <i class="fas fa-file-excel"></i>
+                </div>
+                <h3>Export ke CSV</h3>
+                <p>Download data untuk Excel</p>
+            </div>
+            
+            <div class="control-card" onclick="importData()">
+                <div class="control-icon">
+                    <i class="fas fa-file-import"></i>
+                </div>
+                <h3>Import Data</h3>
+                <p>Muat data dari file backup</p>
+            </div>
+            
+            <div class="control-card delete" onclick="confirmDeleteAll()">
+                <div class="control-icon">
+                    <i class="fas fa-trash-alt"></i>
+                </div>
+                <h3>Hapus Semua</h3>
+                <p>Kosongkan database</p>
+            </div>
+        </div>
+        
+        <!-- Filter Section -->
+        <div class="filter-section">
+            <h2><i class="fas fa-filter"></i> Filter Data</h2>
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label class="filter-label">Tanggal Mulai</label>
+                    <input type="date" id="startDate" class="filter-input">
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">Tanggal Akhir</label>
+                    <input type="date" id="endDate" class="filter-input">
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">Metode Pembayaran</label>
+                    <select id="paymentMethodFilter" class="filter-input">
+                        <option value="">Semua Metode</option>
+                        <option value="cash">Tunai</option>
+                        <option value="qris">QRIS</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">Cari Transaksi</label>
+                    <input type="text" id="searchInput" class="filter-input" placeholder="ID atau nama item...">
+                </div>
+            </div>
+            
+            <div class="filter-buttons">
+                <button class="btn-filter" onclick="applyFilters()">
+                    <i class="fas fa-filter"></i> Terapkan Filter
+                </button>
+                <button class="btn-reset" onclick="resetFilters()">
+                    <i class="fas fa-redo"></i> Reset Filter
+                </button>
+            </div>
+        </div>
+        
+        <!-- Transactions Table -->
+        <div class="transactions-table">
+            <div class="table-header">
+                <h2><i class="fas fa-history"></i> Riwayat Transaksi</h2>
+                <div class="table-info">
+                    Menampilkan <span id="showingCount">0</span> dari <span id="totalCount">0</span> transaksi
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID Transaksi</th>
+                            <th>Tanggal & Waktu</th>
+                            <th>Item</th>
+                            <th>Total</th>
+                            <th>Metode</th>
+                            <th>Bayar</th>
+                            <th>Kembalian</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionsBody">
+                        <!-- Data akan diisi oleh JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="empty-state" id="emptyState" style="display: none;">
+                <i class="fas fa-database"></i>
+                <h3>Tidak ada data transaksi</h3>
+                <p>Belum ada transaksi yang tersimpan. Kembali ke halaman kasir untuk mulai transaksi.</p>
+                <a href="index.html" class="btn-backup" style="margin-top: 20px; display: inline-block;">
+                    <i class="fas fa-arrow-left"></i> Kembali ke Kasir
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Import Modal -->
+    <div class="modal-overlay" id="importModal" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <i class="fas fa-file-import"></i>
+                <h3>Import Data Backup</h3>
+            </div>
+            <div class="modal-body">
+                <p>Pilih file backup (.json) untuk mengimpor data:</p>
+                <input type="file" id="fileInput" accept=".json" style="margin: 20px 0; padding: 10px; width: 100%;">
+                <div class="import-preview" id="importPreview" style="display: none; margin-top: 20px; padding: 15px; background: var(--bg-tertiary); border-radius: var(--radius-md);">
+                    <h4>Preview Data:</h4>
+                    <div id="previewContent"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-secondary" onclick="closeImportModal()">
+                    <i class="fas fa-times"></i> Batal
+                </button>
+                <button class="btn-modal-primary" onclick="processImport()" disabled id="confirmImport">
+                    <i class="fas fa-check"></i> Import Data
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-overlay" id="deleteModal" style="display: none;">
+        <div class="modal">
+            <div class="modal-header warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                <h3>Konfirmasi Hapus</h3>
+            </div>
+            <div class="modal-body">
+                <p id="deleteMessage">Apakah Anda yakin ingin menghapus data ini?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-secondary" onclick="closeDeleteModal()">
+                    <i class="fas fa-times"></i> Batal
+                </button>
+                <button class="btn-modal-primary delete" onclick="confirmDelete()" id="confirmDeleteBtn">
+                    <i class="fas fa-trash"></i> Ya, Hapus
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast -->
+    <div class="toast-container">
+        <div class="toast" id="toastNotification">
+            <div class="toast-icon">
+                <i class="fas fa-check"></i>
+            </div>
+            <div class="toast-content">
+                <div class="toast-title" id="toastTitle">Berhasil</div>
+                <div class="toast-message" id="toastMessage">Operasi berhasil dilakukan</div>
+            </div>
+            <button class="toast-close" onclick="hideToast()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+    
+    <script src="backup.js"></script>
+</body>
+</html>
