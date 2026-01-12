@@ -1,414 +1,407 @@
 // ============================================
-// ZETA POS v3.0 - REAL-TIME SYNC EDITION
+// ZETA POS ULTRA - MAIN SCRIPT
+// Elegant POS System with Google Sheets Integration
 // ============================================
 
-// ===== CONFIGURASI =====
-const CONFIG = {
-    APPS_SCRIPT_URL: localStorage.getItem('zeta_script_url') || '',
-    SYNC_INTERVAL: 30000, // 30 detik
-    MAX_RETRIES: 3,
-    VERSION: '3.0' 
-};
-
-// ===== STATE =====
-let state = {
+// App State
+const AppState = {
     orderItems: [],
-    pendingSync: [],
+    selectedItemIndex: null,
+    currentQuantity: 1,
+    cashAmount: 0,
     isOnline: false,
-    lastSync: null,
     syncQueue: [],
-    realTimeData: null
+    transactionHistory: [],
+    config: {
+        scriptUrl: localStorage.getItem('zeta_script_url') || '',
+        spreadsheetId: localStorage.getItem('zeta_spreadsheet_id') || '',
+        syncInterval: 30000,
+        autoSync: true
+    }
 };
 
-// ===== WEBSOCKET SIMULATION (Polling) =====
-class RealTimeSync {
-    constructor() {
-        this.interval = null;
-        this.listeners = [];
-        this.isRunning = false;
-    }
+// DOM Elements
+const Elements = {
+    // Header
+    connectionStatus: document.getElementById('connectionStatus'),
+    currentTime: document.getElementById('currentTime'),
+    currentDate: document.getElementById('currentDate'),
     
-    start() {
-        if (this.isRunning) return;
-        
-        console.log("🔄 Starting real-time sync...");
-        this.isRunning = true;
-        
-        // Sync setiap 30 detik
-        this.interval = setInterval(() => {
-            this.syncData();
-            this.checkConnection();
-        }, CONFIG.SYNC_INTERVAL);
-        
-        // Immediate first sync
-        setTimeout(() => this.syncData(), 1000);
-    }
+    // Menu
+    menuCards: document.querySelectorAll('.menu-card'),
+    btnMenuAdd: document.querySelectorAll('.btn-menu-add'),
     
-    stop() {
-        if (this.interval) {
-            clearInterval(this.interval);
-            this.interval = null;
-        }
-        this.isRunning = false;
-        console.log("⏹️ Real-time sync stopped");
-    }
+    // Order
+    orderList: document.getElementById('orderList'),
+    orderCount: document.getElementById('orderCount'),
+    subtotal: document.getElementById('subtotal'),
+    itemCount: document.getElementById('itemCount'),
+    totalAmount: document.getElementById('totalAmount'),
+    btnClearOrder: document.getElementById('btnClearOrder'),
     
-    async syncData() {
-        if (!CONFIG.APPS_SCRIPT_URL) return;
-        
-        try {
-            // 1. Sync pending transactions
-            await this.syncPendingTransactions();
-            
-            // 2. Get latest data
-            await this.fetchLatestData();
-            
-            // 3. Update UI
-            this.notifyListeners();
-            
-            state.lastSync = new Date();
-            updateSyncStatus(true);
-            
-        } catch (error) {
-            console.error("❌ Sync error:", error);
-            updateSyncStatus(false);
-        }
-    }
-    
-    async syncPendingTransactions() {
-        if (state.syncQueue.length === 0) return;
-        
-        console.log(`📤 Syncing ${state.syncQueue.length} pending transactions...`);
-        
-        for (let i = 0; i < state.syncQueue.length; i++) {
-            const transaction = state.syncQueue[i];
-            
-            try {
-                const success = await this.sendTransaction(transaction);
-                
-                if (success) {
-                    // Remove from queue
-                    state.syncQueue.splice(i, 1);
-                    i--;
-                    
-                    // Save to local history
-                    saveToHistory(transaction, 'synced');
-                    
-                    console.log("✅ Transaction synced:", transaction.transaction_id);
-                }
-            } catch (error) {
-                console.error("❌ Failed to sync transaction:", error);
-                transaction.retries = (transaction.retries || 0) + 1;
-                
-                // Remove if too many retries
-                if (transaction.retries >= CONFIG.MAX_RETRIES) {
-                    state.syncQueue.splice(i, 1);
-                    i--;
-                    saveToHistory(transaction, 'failed');
-                    console.log("🗑️ Transaction moved to history after max retries");
-                }
-            }
-        }
-        
-        // Update queue display
-        updateQueueDisplay();
-    }
-    
-    async sendTransaction(transaction) {
-        // Generate unique ID jika belum ada
-        if (!transaction.transaction_id) {
-            transaction.transaction_id = 'T' + Date.now() + Math.random().toString(36).substr(2, 9);
-        }
-        
-        // Add timestamp
-        transaction.timestamp = new Date().toISOString();
-        
-        // Try multiple methods
-        const methods = [
-            this.sendViaPost,
-            this.sendViaGet,
-            this.sendViaForm
-        ];
-        
-        for (const method of methods) {
-            try {
-                const result = await method.call(this, transaction);
-                if (result) return true;
-            } catch (error) {
-                console.log(`⚠️ Method failed, trying next...`);
-            }
-        }
-        
-        throw new Error("All methods failed");
-    }
-    
-    async sendViaPost(transaction) {
-        const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(transaction),
-            mode: 'cors'
-        });
-        
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
-        const result = await response.json();
-        return result.status === 'success';
-    }
-    
-    async sendViaGet(transaction) {
-        const encoded = encodeURIComponent(JSON.stringify(transaction));
-        const url = `${CONFIG.APPS_SCRIPT_URL}?json=${encoded}&t=${Date.now()}`;
-        
-        const response = await fetch(url);
-        const result = await response.json();
-        return result.status === 'success';
-    }
-    
-    async sendViaForm(transaction) {
-        const formData = new FormData();
-        formData.append('json', JSON.stringify(transaction));
-        
-        const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
-            method: 'POST',
-            body: formData
-        });
-        
-        const result = await response.json();
-        return result.status === 'success';
-    }
-    
-    async fetchLatestData() {
-        if (!CONFIG.APPS_SCRIPT_URL) return;
-        
-        try {
-            const url = `${CONFIG.APPS_SCRIPT_URL}?action=recent&t=${Date.now()}`;
-            const response = await fetch(url);
-            const data = await response.json();
-            
-            if (data.recent_transactions) {
-                state.realTimeData = data.recent_transactions;
-                updateRealTimeDisplay();
-            }
-            
-            // Update stats
-            if (data.stats) {
-                updateStatsDisplay(data.stats);
-            }
-            
-        } catch (error) {
-            console.error("❌ Failed to fetch latest data:", error);
-        }
-    }
-    
-    async checkConnection() {
-        if (!CONFIG.APPS_SCRIPT_URL) {
-            state.isOnline = false;
-            return;
-        }
-        
-        try {
-            const url = `${CONFIG.APPS_SCRIPT_URL}?action=ping&t=${Date.now()}`;
-            const response = await fetch(url, { timeout: 5000 });
-            const data = await response.json();
-            
-            state.isOnline = data.status === 'alive';
-            updateConnectionStatus(state.isOnline);
-            
-        } catch (error) {
-            state.isOnline = false;
-            updateConnectionStatus(false);
-        }
-    }
-    
-    addListener(callback) {
-        this.listeners.push(callback);
-    }
-    
-    notifyListeners() {
-        this.listeners.forEach(callback => {
-            try {
-                callback(state);
-            } catch (error) {
-                console.error("Listener error:", error);
-            }
-        });
-    }
-}
-
-// ===== INITIALIZATION =====
-let realTimeSync;
-
-document.addEventListener('DOMContentLoaded', function() {
-    initialize();
-    setupEventListeners();
-    loadConfig();
-    startRealTimeSync();
-    
-    console.log("🚀 ZETA POS v3.0 initialized");
-    addLog("Sistem real-time ready", "success");
-});
-
-function initialize() {
-    // Load state from localStorage
-    const savedState = localStorage.getItem('zeta_pos_state');
-    if (savedState) {
-        try {
-            const parsed = JSON.parse(savedState);
-            state.orderItems = parsed.orderItems || [];
-            state.syncQueue = parsed.syncQueue || [];
-        } catch (e) {
-            console.error("Error loading state:", e);
-        }
-    }
-    
-    // Initialize real-time sync
-    realTimeSync = new RealTimeSync();
-    realTimeSync.addListener(onStateUpdate);
-    
-    // Update UI
-    updateOrderDisplay();
-    updateQueueDisplay();
-}
-
-function setupEventListeners() {
-    // Menu buttons
-    document.querySelectorAll('.menu-card').forEach(card => {
-        card.addEventListener('click', function(e) {
-            if (e.target.classList.contains('btn-add')) return;
-            
-            const id = this.dataset.id;
-            const name = this.querySelector('h3').textContent;
-            const price = parseInt(this.dataset.price);
-            
-            addToOrder({ id, name, price, quantity: 1 });
-        });
-    });
-    
-    // Add buttons
-    document.querySelectorAll('.btn-add').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const card = this.closest('.menu-card');
-            const id = card.dataset.id;
-            const name = card.querySelector('h3').textContent;
-            const price = parseInt(card.dataset.price);
-            
-            addToOrder({ id, name, price, quantity: 1 });
-        });
-    });
-    
-    // Quantity controls
-    document.getElementById('qty-minus').addEventListener('click', () => updateQuantity(-1));
-    document.getElementById('qty-plus').addEventListener('click', () => updateQuantity(1));
-    document.getElementById('qty-input').addEventListener('change', updateQtyInput);
+    // Quantity
+    qtyInput: document.getElementById('qtyInput'),
+    qtyDecrease: document.getElementById('qtyDecrease'),
+    qtyIncrease: document.getElementById('qtyIncrease'),
+    btnUpdateQty: document.getElementById('btnUpdateQty'),
     
     // Payment
-    document.getElementById('btn-calculate').addEventListener('click', calculatePayment);
-    document.getElementById('cash-input').addEventListener('input', validateCash);
-    document.getElementById('btn-process').addEventListener('click', processPayment);
+    cashAmount: document.getElementById('cashAmount'),
+    changeAmount: document.getElementById('changeAmount'),
+    paymentStatus: document.getElementById('paymentStatus'),
+    btnCalculate: document.getElementById('btnCalculate'),
+    btnProcess: document.getElementById('btnProcess'),
     
-    // Reset
-    document.getElementById('btn-reset').addEventListener('click', resetOrder);
+    // Activity Log
+    activityLog: document.getElementById('activityLog'),
     
-    // Sync controls
-    document.getElementById('btn-sync-now').addEventListener('click', () => realTimeSync.syncData());
-    document.getElementById('btn-view-dashboard').addEventListener('click', openDashboard);
+    // Footer
+    syncStatus: document.getElementById('syncStatus'),
+    lastSync: document.getElementById('lastSync'),
+    transactionCount: document.getElementById('transactionCount'),
     
-    // Config
-    document.getElementById('btn-config').addEventListener('click', openConfig);
-    document.getElementById('btn-save-config').addEventListener('click', saveConfig);
-    document.getElementById('btn-test-config').addEventListener('click', testConfig);
-}
+    // Modals
+    settingsModal: document.getElementById('settingsModal'),
+    successModal: document.getElementById('successModal'),
+    scriptUrl: document.getElementById('scriptUrl'),
+    spreadsheetId: document.getElementById('spreadsheetId'),
+    btnTestConnection: document.getElementById('btnTestConnection'),
+    testResult: document.getElementById('testResult'),
+    saveSettings: document.getElementById('saveSettings'),
+    cancelSettings: document.getElementById('cancelSettings'),
+    closeSettings: document.getElementById('closeSettings'),
+    successTotal: document.getElementById('successTotal'),
+    successCash: document.getElementById('successCash'),
+    successChange: document.getElementById('successChange'),
+    successId: document.getElementById('successId'),
+    btnPrint: document.getElementById('btnPrint'),
+    closeSuccess: document.getElementById('closeSuccess'),
+    
+    // Buttons
+    btnDashboard: document.getElementById('btnDashboard'),
+    btnSettings: document.getElementById('btnSettings'),
+    btnHelp: document.getElementById('btnHelp'),
+    btnQuickSale: document.getElementById('btnQuickSale'),
+    
+    // Loading
+    loadingScreen: document.getElementById('loadingScreen'),
+    mainContainer: document.getElementById('mainContainer')
+};
 
-function loadConfig() {
-    const url = localStorage.getItem('zeta_script_url');
-    const sheetId = localStorage.getItem('zeta_sheet_id');
+// Menu Data
+const MenuItems = {
+    'nasi-dasar': {
+        id: 'nasi-dasar',
+        name: 'Nasi Daun Jeruk',
+        description: 'Paket dasar dengan nasi wangi daun jeruk',
+        price: 10000,
+        icon: '🍚',
+        category: 'nasi'
+    },
+    'paket-lengkap': {
+        id: 'paket-lengkap',
+        name: 'Paket Lengkap',
+        description: 'Nasi + Ayam Suwir + Kulit Krispi',
+        price: 12000,
+        icon: '👑',
+        category: 'nasi',
+        savings: 3000
+    },
+    'ayam-suwir': {
+        id: 'ayam-suwir',
+        name: 'Ayam Suwir',
+        description: 'Topping ayam suwir spesial',
+        price: 0,
+        icon: '🍗',
+        category: 'topping'
+    },
+    'kulit-krispi': {
+        id: 'kulit-krispi',
+        name: 'Kulit Ayam Krispi',
+        description: 'Kulit ayam krispi renyah',
+        price: 0,
+        icon: '🥓',
+        category: 'topping'
+    },
+    'es-jeruk': {
+        id: 'es-jeruk',
+        name: 'Es Jeruk Peras',
+        description: 'Jeruk peras asli dengan es batu',
+        price: 5000,
+        icon: '🧃',
+        category: 'minuman'
+    }
+};
+
+// Initialize App
+document.addEventListener('DOMContentLoaded', () => {
+    initializeApp();
+});
+
+async function initializeApp() {
+    // Show loading screen
+    showLoading(true);
     
-    if (url) {
-        CONFIG.APPS_SCRIPT_URL = url;
-        document.getElementById('config-url').value = url;
+    // Initialize components
+    initializeClock();
+    initializeEventListeners();
+    loadSavedData();
+    
+    // Test connection if configured
+    if (AppState.config.scriptUrl) {
+        await testConnection();
     }
     
-    if (sheetId) {
-        document.getElementById('config-sheet-id').value = sheetId;
-    }
+    // Update UI
+    updateUI();
+    
+    // Hide loading screen
+    setTimeout(() => {
+        showLoading(false);
+        addActivityLog('Sistem siap digunakan', 'info');
+    }, 1000);
 }
 
-function startRealTimeSync() {
-    if (CONFIG.APPS_SCRIPT_URL) {
-        realTimeSync.start();
-        updateConnectionStatus(true);
+function showLoading(show) {
+    if (show) {
+        Elements.loadingScreen.classList.remove('hidden');
+        Elements.mainContainer.style.opacity = '0.5';
     } else {
-        updateConnectionStatus(false);
-        addLog("⚠️ URL Apps Script belum dikonfigurasi", "warning");
+        Elements.loadingScreen.classList.add('hidden');
+        Elements.mainContainer.style.opacity = '1';
+    }
+}
+
+function initializeClock() {
+    function updateClock() {
+        const now = new Date();
+        
+        // Update time
+        const timeString = now.toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        Elements.currentTime.textContent = timeString;
+        
+        // Update date
+        const dateString = now.toLocaleDateString('id-ID', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        Elements.currentDate.textContent = dateString;
+    }
+    
+    // Update immediately
+    updateClock();
+    
+    // Update every second
+    setInterval(updateClock, 1000);
+}
+
+function initializeEventListeners() {
+    // Menu buttons
+    Elements.menuCards.forEach(card => {
+        card.addEventListener('click', (e) => {
+            if (!e.target.closest('.btn-menu-add')) {
+                const itemId = card.dataset.id;
+                addOrderItem(itemId, AppState.currentQuantity);
+            }
+        });
+    });
+    
+    // Add to order buttons
+    Elements.btnMenuAdd.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const itemId = btn.dataset.id;
+            addOrderItem(itemId, AppState.currentQuantity);
+        });
+    });
+    
+    // Order management
+    Elements.btnClearOrder.addEventListener('click', clearOrder);
+    
+    // Quantity controls
+    Elements.qtyDecrease.addEventListener('click', () => updateQuantity(-1));
+    Elements.qtyIncrease.addEventListener('click', () => updateQuantity(1));
+    Elements.qtyInput.addEventListener('change', updateQtyFromInput);
+    Elements.btnUpdateQty.addEventListener('click', updateSelectedQuantity);
+    
+    // Payment controls
+    Elements.cashAmount.addEventListener('input', validatePayment);
+    Elements.btnCalculate.addEventListener('click', calculateChange);
+    Elements.btnProcess.addEventListener('click', processTransaction);
+    
+    // Modal controls
+    Elements.btnSettings.addEventListener('click', () => showSettingsModal(true));
+    Elements.closeSettings.addEventListener('click', () => showSettingsModal(false));
+    Elements.cancelSettings.addEventListener('click', () => showSettingsModal(false));
+    Elements.btnTestConnection.addEventListener('click', testConnection);
+    Elements.saveSettings.addEventListener('click', saveSettings);
+    Elements.closeSuccess.addEventListener('click', () => showSuccessModal(false));
+    
+    // Dashboard button
+    Elements.btnDashboard.addEventListener('click', openDashboard);
+    
+    // Quick sale button
+    Elements.btnQuickSale.addEventListener('click', quickSale);
+    
+    // Print receipt
+    Elements.btnPrint.addEventListener('click', printReceipt);
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        // F2 for quick sale
+        if (e.key === 'F2') {
+            e.preventDefault();
+            quickSale();
+        }
+        
+        // ESC to close modals
+        if (e.key === 'Escape') {
+            showSettingsModal(false);
+            showSuccessModal(false);
+        }
+        
+        // F1 for settings
+        if (e.key === 'F1') {
+            e.preventDefault();
+            showSettingsModal(true);
+        }
+        
+        // Ctrl+S to save transaction
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            if (!Elements.btnProcess.disabled) {
+                processTransaction();
+            }
+        }
+    });
+    
+    // Close modal on background click
+    Elements.settingsModal.addEventListener('click', (e) => {
+        if (e.target === Elements.settingsModal) {
+            showSettingsModal(false);
+        }
+    });
+    
+    Elements.successModal.addEventListener('click', (e) => {
+        if (e.target === Elements.successModal) {
+            showSuccessModal(false);
+        }
+    });
+}
+
+function loadSavedData() {
+    try {
+        // Load transaction history
+        const savedHistory = localStorage.getItem('zeta_transaction_history');
+        if (savedHistory) {
+            AppState.transactionHistory = JSON.parse(savedHistory);
+            Elements.transactionCount.textContent = AppState.transactionHistory.length;
+        }
+        
+        // Load sync queue
+        const savedQueue = localStorage.getItem('zeta_sync_queue');
+        if (savedQueue) {
+            AppState.syncQueue = JSON.parse(savedQueue);
+        }
+        
+    } catch (error) {
+        console.error('Error loading saved data:', error);
+        addActivityLog('Gagal memuat data lokal', 'error');
     }
 }
 
 // ===== ORDER MANAGEMENT =====
-function addToOrder(item) {
-    // Check if already exists
-    const existingIndex = state.orderItems.findIndex(i => i.id === item.id);
+
+function addOrderItem(itemId, quantity = 1) {
+    const menuItem = MenuItems[itemId];
+    if (!menuItem) return;
+    
+    // Check if item already exists in order
+    const existingIndex = AppState.orderItems.findIndex(item => item.id === itemId);
     
     if (existingIndex > -1) {
-        state.orderItems[existingIndex].quantity += item.quantity;
+        // Update existing item
+        AppState.orderItems[existingIndex].quantity += quantity;
+        AppState.selectedItemIndex = existingIndex;
     } else {
-        state.orderItems.push({ ...item });
+        // Add new item
+        const orderItem = {
+            ...menuItem,
+            quantity: quantity,
+            addedAt: new Date().toISOString()
+        };
+        AppState.orderItems.push(orderItem);
+        AppState.selectedItemIndex = AppState.orderItems.length - 1;
     }
     
+    // Update quantity input
+    Elements.qtyInput.value = AppState.orderItems[AppState.selectedItemIndex].quantity;
+    AppState.currentQuantity = AppState.orderItems[AppState.selectedItemIndex].quantity;
+    
+    // Update UI
     updateOrderDisplay();
-    saveState();
-    addLog(`+ ${item.name} ditambahkan`, "info");
-}
-
-function updateQuantity(change) {
-    const input = document.getElementById('qty-input');
-    let value = parseInt(input.value) || 1;
-    value = Math.max(1, Math.min(99, value + change));
-    input.value = value;
-}
-
-function updateQtyInput() {
-    const input = document.getElementById('qty-input');
-    let value = parseInt(input.value) || 1;
-    value = Math.max(1, Math.min(99, value));
-    input.value = value;
+    updateOrderSummary();
+    
+    // Add to activity log
+    addActivityLog(`Ditambahkan: ${menuItem.name} x${quantity}`, 'success');
+    
+    // Show notification
+    showNotification(`${menuItem.name} ditambahkan ke pesanan`, 'success');
 }
 
 function updateOrderDisplay() {
-    const container = document.getElementById('order-items');
-    const totalElement = document.getElementById('order-total');
+    const orderList = Elements.orderList;
     
-    if (state.orderItems.length === 0) {
-        container.innerHTML = `
+    if (AppState.orderItems.length === 0) {
+        orderList.innerHTML = `
             <div class="empty-order">
-                <i class="fas fa-shopping-cart"></i>
-                <p>Belum ada pesanan</p>
+                <div class="empty-icon">
+                    <i class="fas fa-shopping-basket"></i>
+                </div>
+                <h3>Belum ada pesanan</h3>
+                <p>Pilih menu dari panel kiri untuk memulai</p>
             </div>
         `;
-        totalElement.textContent = 'Rp0';
+        Elements.orderCount.textContent = '0 Item';
         return;
     }
     
     let html = '';
-    let total = 0;
+    let totalItems = 0;
     
-    state.orderItems.forEach((item, index) => {
-        const subtotal = item.price * item.quantity;
-        total += subtotal;
+    AppState.orderItems.forEach((item, index) => {
+        totalItems += item.quantity;
+        const itemTotal = item.price * item.quantity;
+        const isSelected = index === AppState.selectedItemIndex;
         
         html += `
-            <div class="order-item" data-index="${index}">
+            <div class="order-item ${isSelected ? 'selected' : ''}" data-index="${index}">
                 <div class="item-info">
                     <div class="item-name">${item.name}</div>
-                    <div class="item-price">${formatRupiah(item.price)}</div>
+                    <div class="item-details">
+                        <span>${formatRupiah(item.price)}</span>
+                        <span>•</span>
+                        <span>${item.quantity} porsi</span>
+                    </div>
                 </div>
                 <div class="item-controls">
-                    <button class="btn-qty minus" onclick="adjustQuantity(${index}, -1)">-</button>
-                    <span class="item-quantity">${item.quantity}</span>
-                    <button class="btn-qty plus" onclick="adjustQuantity(${index}, 1)">+</button>
-                    <span class="item-subtotal">${formatRupiah(subtotal)}</span>
-                    <button class="btn-remove" onclick="removeItem(${index})">
+                    <div class="qty-control">
+                        <button class="qty-btn-sm decrease" onclick="adjustQuantity(${index}, -1)">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <span class="qty-value">${item.quantity}</span>
+                        <button class="qty-btn-sm increase" onclick="adjustQuantity(${index}, 1)">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                    <span class="item-price">${formatRupiah(itemTotal)}</span>
+                    <button class="btn-remove-item" onclick="removeOrderItem(${index})">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -416,241 +409,450 @@ function updateOrderDisplay() {
         `;
     });
     
-    container.innerHTML = html;
-    totalElement.textContent = formatRupiah(total);
-}
-
-function adjustQuantity(index, change) {
-    if (state.orderItems[index]) {
-        state.orderItems[index].quantity = Math.max(1, state.orderItems[index].quantity + change);
-        updateOrderDisplay();
-        saveState();
-    }
-}
-
-function removeItem(index) {
-    if (state.orderItems[index]) {
-        const removed = state.orderItems.splice(index, 1)[0];
-        updateOrderDisplay();
-        saveState();
-        addLog(`- ${removed.name} dihapus`, "warning");
-    }
-}
-
-function resetOrder() {
-    if (state.orderItems.length === 0) return;
+    orderList.innerHTML = html;
+    Elements.orderCount.textContent = `${totalItems} Item`;
     
-    if (confirm('Reset semua pesanan?')) {
-        state.orderItems = [];
+    // Add click handlers for selection
+    document.querySelectorAll('.order-item').forEach((item, index) => {
+        item.addEventListener('click', (e) => {
+            if (!e.target.closest('.qty-control') && !e.target.closest('.btn-remove-item')) {
+                selectOrderItem(index);
+            }
+        });
+    });
+}
+
+function selectOrderItem(index) {
+    AppState.selectedItemIndex = index;
+    const selectedItem = AppState.orderItems[index];
+    
+    if (selectedItem) {
+        Elements.qtyInput.value = selectedItem.quantity;
+        AppState.currentQuantity = selectedItem.quantity;
         updateOrderDisplay();
-        saveState();
-        addLog("Semua pesanan direset", "warning");
+    }
+}
+
+window.adjustQuantity = function(index, change) {
+    if (AppState.orderItems[index]) {
+        const newQuantity = AppState.orderItems[index].quantity + change;
+        if (newQuantity >= 1 && newQuantity <= 99) {
+            AppState.orderItems[index].quantity = newQuantity;
+            AppState.selectedItemIndex = index;
+            Elements.qtyInput.value = newQuantity;
+            AppState.currentQuantity = newQuantity;
+            
+            updateOrderDisplay();
+            updateOrderSummary();
+            addActivityLog(`Diupdate: ${AppState.orderItems[index].name} → ${newQuantity}pcs`, 'info');
+        }
+    }
+};
+
+window.removeOrderItem = function(index) {
+    if (AppState.orderItems[index]) {
+        const removedItem = AppState.orderItems.splice(index, 1)[0];
+        
+        if (AppState.selectedItemIndex === index) {
+            AppState.selectedItemIndex = null;
+        } else if (AppState.selectedItemIndex > index) {
+            AppState.selectedItemIndex--;
+        }
+        
+        updateOrderDisplay();
+        updateOrderSummary();
+        addActivityLog(`Dihapus: ${removedItem.name}`, 'warning');
+        showNotification(`${removedItem.name} dihapus dari pesanan`, 'warning');
+    }
+};
+
+function updateQuantity(change) {
+    let current = parseInt(Elements.qtyInput.value) || 1;
+    current = Math.max(1, Math.min(99, current + change));
+    Elements.qtyInput.value = current;
+    AppState.currentQuantity = current;
+}
+
+function updateQtyFromInput() {
+    let value = parseInt(Elements.qtyInput.value) || 1;
+    value = Math.max(1, Math.min(99, value));
+    Elements.qtyInput.value = value;
+    AppState.currentQuantity = value;
+}
+
+function updateSelectedQuantity() {
+    if (AppState.selectedItemIndex === null) {
+        showNotification('Pilih item terlebih dahulu', 'warning');
+        return;
+    }
+    
+    const newQty = parseInt(Elements.qtyInput.value) || 1;
+    if (newQty < 1 || newQty > 99) {
+        showNotification('Jumlah harus antara 1-99', 'error');
+        return;
+    }
+    
+    AppState.orderItems[AppState.selectedItemIndex].quantity = newQty;
+    AppState.currentQuantity = newQty;
+    
+    updateOrderDisplay();
+    updateOrderSummary();
+    addActivityLog(`Diupdate: ${AppState.orderItems[AppState.selectedItemIndex].name} → ${newQty}pcs`, 'info');
+}
+
+function updateOrderSummary() {
+    const subtotal = AppState.orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const itemCount = AppState.orderItems.reduce((sum, item) => sum + item.quantity, 0);
+    
+    Elements.subtotal.textContent = formatRupiah(subtotal);
+    Elements.itemCount.textContent = itemCount;
+    Elements.totalAmount.textContent = formatRupiah(subtotal);
+    
+    // Update payment validation
+    validatePayment();
+}
+
+function clearOrder() {
+    if (AppState.orderItems.length === 0) return;
+    
+    if (confirm('Apakah Anda yakin ingin mengosongkan pesanan?')) {
+        AppState.orderItems = [];
+        AppState.selectedItemIndex = null;
+        Elements.cashAmount.value = '';
+        Elements.changeAmount.textContent = 'Rp 0';
+        
+        updateOrderDisplay();
+        updateOrderSummary();
+        updatePaymentStatus('info', 'Pesanan dikosongkan');
+        
+        addActivityLog('Semua pesanan dikosongkan', 'warning');
+        showNotification('Pesanan dikosongkan', 'warning');
     }
 }
 
 // ===== PAYMENT PROCESSING =====
-function calculatePayment() {
-    const total = state.orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const cashInput = document.getElementById('cash-input');
-    const cash = parseInt(cashInput.value) || 0;
-    const changeElement = document.getElementById('change-amount');
+
+function validatePayment() {
+    const total = AppState.orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const cash = parseFloat(Elements.cashAmount.value) || 0;
+    
+    if (total === 0) {
+        Elements.btnProcess.disabled = true;
+        updatePaymentStatus('info', 'Tambahkan item terlebih dahulu');
+        return;
+    }
     
     if (cash === 0) {
-        showAlert('Masukkan jumlah uang!', 'error');
+        Elements.btnProcess.disabled = true;
+        updatePaymentStatus('info', 'Masukkan jumlah uang');
         return;
     }
     
     if (cash < total) {
         const kurang = total - cash;
-        showAlert(`Uang kurang Rp${formatNumber(kurang)}!`, 'error');
-        changeElement.textContent = 'Rp0';
+        Elements.btnProcess.disabled = true;
+        updatePaymentStatus('error', `Kurang ${formatRupiah(kurang)}`);
+        return;
+    }
+    
+    Elements.btnProcess.disabled = false;
+    updatePaymentStatus('success', 'Pembayaran valid');
+}
+
+function calculateChange() {
+    const total = AppState.orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const cash = parseFloat(Elements.cashAmount.value) || 0;
+    
+    if (cash === 0) {
+        showNotification('Masukkan jumlah uang terlebih dahulu', 'warning');
+        return;
+    }
+    
+    if (cash < total) {
+        const kurang = total - cash;
+        showNotification(`Uang kurang ${formatRupiah(kurang)}`, 'error');
         return;
     }
     
     const change = cash - total;
-    changeElement.textContent = formatRupiah(change);
-    showAlert('Pembayaran valid. Klik PROSES.', 'success');
+    Elements.changeAmount.textContent = formatRupiah(change);
+    
+    updatePaymentStatus('success', `Kembalian: ${formatRupiah(change)}`);
+    addActivityLog(`Dihitung: Uang ${formatRupiah(cash)}, Kembalian ${formatRupiah(change)}`, 'info');
 }
 
-function validateCash() {
-    const total = state.orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const cash = parseInt(document.getElementById('cash-input').value) || 0;
-    const processBtn = document.getElementById('btn-process');
+async function processTransaction() {
+    const total = AppState.orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const cash = parseFloat(Elements.cashAmount.value) || 0;
     
-    processBtn.disabled = cash < total || total === 0;
-}
-
-async function processPayment() {
-    const total = state.orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const cash = parseInt(document.getElementById('cash-input').value) || 0;
-    
-    if (cash < total || state.orderItems.length === 0) {
-        showAlert('Pembayaran tidak valid!', 'error');
+    if (cash < total || AppState.orderItems.length === 0) {
+        showNotification('Pembayaran tidak valid', 'error');
         return;
     }
     
-    // Prepare transaction
-    const transaction = {
-        transaction_id: 'T' + Date.now(),
+    // Show processing
+    showLoading(true);
+    Elements.btnProcess.disabled = true;
+    
+    // Create transaction data
+    const transactionData = {
+        transaction_id: 'T' + Date.now() + Math.random().toString(36).substr(2, 6).toUpperCase(),
         date: new Date().toLocaleDateString('id-ID'),
         time: new Date().toLocaleTimeString('id-ID'),
-        items: state.orderItems,
+        items: AppState.orderItems.map(item => ({
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            total: item.price * item.quantity
+        })),
+        subtotal: total,
         total: total,
-        cash: cash,
+        cash_received: cash,
         change: cash - total,
-        status: 'pending_sync'
+        status: 'completed',
+        timestamp: new Date().toISOString()
     };
     
-    // Add to sync queue
-    state.syncQueue.push(transaction);
-    
-    // Show processing
-    showProcessing(true);
-    
-    // Try immediate sync
     try {
-        const success = await realTimeSync.sendTransaction(transaction);
+        // Save to Google Sheets
+        let saveResult = false;
         
-        if (success) {
-            // Remove from queue if successful
-            const index = state.syncQueue.findIndex(t => t.transaction_id === transaction.transaction_id);
-            if (index > -1) state.syncQueue.splice(index, 1);
-            
-            showAlert('✅ Transaksi berhasil disimpan ke Google Sheets!', 'success');
-            saveToHistory(transaction, 'synced_immediately');
-        } else {
-            showAlert('⚠️ Transaksi disimpan lokal, akan disync otomatis', 'warning');
-            saveToHistory(transaction, 'queued');
+        if (AppState.config.scriptUrl && AppState.isOnline) {
+            saveResult = await saveToGoogleSheets(transactionData);
         }
+        
+        if (!saveResult) {
+            // Save to sync queue
+            AppState.syncQueue.push(transactionData);
+            localStorage.setItem('zeta_sync_queue', JSON.stringify(AppState.syncQueue));
+            transactionData.status = 'pending_sync';
+        }
+        
+        // Save to local history
+        AppState.transactionHistory.push(transactionData);
+        localStorage.setItem('zeta_transaction_history', JSON.stringify(AppState.transactionHistory));
+        
+        // Update transaction count
+        Elements.transactionCount.textContent = AppState.transactionHistory.length;
+        
+        // Show success modal
+        showSuccessModal(true, transactionData);
+        
+        // Reset for next transaction
+        setTimeout(() => {
+            AppState.orderItems = [];
+            AppState.selectedItemIndex = null;
+            Elements.cashAmount.value = '';
+            Elements.changeAmount.textContent = 'Rp 0';
+            
+            updateOrderDisplay();
+            updateOrderSummary();
+            showLoading(false);
+            
+            addActivityLog(`Transaksi selesai: ${formatRupiah(total)}`, 'success');
+            
+        }, 2000);
+        
     } catch (error) {
-        showAlert('⚠️ Transaksi disimpan lokal, akan disync otomatis', 'warning');
-        saveToHistory(transaction, 'queued');
+        console.error('Transaction error:', error);
+        showNotification('Gagal memproses transaksi', 'error');
+        showLoading(false);
+        Elements.btnProcess.disabled = false;
     }
-    
-    // Reset for next transaction
-    setTimeout(() => {
-        state.orderItems = [];
-        document.getElementById('cash-input').value = '';
-        document.getElementById('change-amount').textContent = 'Rp0';
-        
-        updateOrderDisplay();
-        updateQueueDisplay();
-        showProcessing(false);
-        
-        // Trigger sync
-        realTimeSync.syncData();
-        
-    }, 2000);
 }
 
-// ===== REAL-TIME DISPLAY =====
-function updateRealTimeDisplay() {
-    if (!state.realTimeData) return;
-    
-    const container = document.getElementById('recent-transactions');
-    if (!container) return;
-    
-    let html = '';
-    
-    state.realTimeData.slice(0, 5).forEach(transaction => {
-        html += `
-            <div class="recent-transaction">
-                <div class="recent-time">${transaction.time}</div>
-                <div class="recent-amount">${formatRupiah(transaction.total)}</div>
-                <div class="recent-id">${transaction.transaction_id}</div>
-            </div>
-        `;
-    });
-    
-    container.innerHTML = html || '<div class="no-data">Belum ada transaksi</div>';
-}
-
-function updateStatsDisplay(stats) {
-    const container = document.getElementById('stats-display');
-    if (!container) return;
-    
-    container.innerHTML = `
-        <div class="stat-item">
-            <div class="stat-label">Total Transaksi</div>
-            <div class="stat-value">${stats.total_rows || 0}</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-label">Terakhir Update</div>
-            <div class="stat-value">${stats.last_update || '-'}</div>
-        </div>
+function updatePaymentStatus(type, message) {
+    Elements.paymentStatus.className = `calc-status ${type}`;
+    Elements.paymentStatus.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+        <span>${message}</span>
     `;
 }
 
-function updateQueueDisplay() {
-    const container = document.getElementById('sync-queue');
-    if (!container) return;
+// ===== GOOGLE SHEETS INTEGRATION =====
+
+async function saveToGoogleSheets(transactionData) {
+    if (!AppState.config.scriptUrl) return false;
     
-    if (state.syncQueue.length === 0) {
-        container.innerHTML = '<div class="empty-queue">Tidak ada transaksi pending</div>';
+    try {
+        // Method 1: Standard JSON POST
+        const response = await fetch(AppState.config.scriptUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(transactionData),
+            mode: 'cors'
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            console.log('✅ Google Sheets save success:', result);
+            
+            // Update sync status
+            updateSyncStatus(true, 'Data terkirim ke Google Sheets');
+            addActivityLog('Data disimpan ke Google Sheets', 'success');
+            
+            return true;
+        }
+        
+        throw new Error(`HTTP ${response.status}`);
+        
+    } catch (error) {
+        console.error('❌ Google Sheets save failed:', error);
+        
+        // Add to sync queue
+        AppState.syncQueue.push({
+            ...transactionData,
+            status: 'pending_sync',
+            error: error.message,
+            retry_count: 0
+        });
+        
+        localStorage.setItem('zeta_sync_queue', JSON.stringify(AppState.syncQueue));
+        updateSyncStatus(false, 'Gagal sync, data disimpan lokal');
+        
+        return false;
+    }
+}
+
+async function testConnection() {
+    const scriptUrl = Elements.scriptUrl.value.trim();
+    
+    if (!scriptUrl) {
+        showTestResult('Masukkan URL Apps Script terlebih dahulu', 'error');
         return;
     }
     
-    let html = `<div class="queue-header">${state.syncQueue.length} transaksi pending</div>`;
+    showTestResult('Menguji koneksi...', 'info');
     
-    state.syncQueue.slice(0, 3).forEach(transaction => {
-        html += `
-            <div class="queue-item">
-                <div class="queue-id">${transaction.transaction_id}</div>
-                <div class="queue-amount">${formatRupiah(transaction.total)}</div>
-            </div>
-        `;
-    });
+    try {
+        const response = await fetch(scriptUrl + '?test=true');
+        const data = await response.json();
+        
+        if (data.status === 'alive') {
+            showTestResult('✅ Koneksi berhasil! Sistem siap digunakan.', 'success');
+            AppState.isOnline = true;
+            updateConnectionStatus(true);
+        } else {
+            showTestResult('❌ Koneksi gagal. Periksa URL dan deployment.', 'error');
+        }
+    } catch (error) {
+        showTestResult(`❌ Koneksi gagal: ${error.message}`, 'error');
+    }
+}
+
+function showTestResult(message, type) {
+    Elements.testResult.textContent = message;
+    Elements.testResult.className = `test-result ${type}`;
+    Elements.testResult.style.display = 'block';
+}
+
+// ===== SETTINGS =====
+
+function showSettingsModal(show) {
+    if (show) {
+        // Load current settings
+        Elements.scriptUrl.value = AppState.config.scriptUrl;
+        Elements.spreadsheetId.value = AppState.config.spreadsheetId;
+        
+        Elements.settingsModal.classList.add('active');
+    } else {
+        Elements.settingsModal.classList.remove('active');
+        Elements.testResult.style.display = 'none';
+    }
+}
+
+function saveSettings() {
+    const scriptUrl = Elements.scriptUrl.value.trim();
+    const spreadsheetId = Elements.spreadsheetId.value.trim();
     
-    if (state.syncQueue.length > 3) {
-        html += `<div class="queue-more">+${state.syncQueue.length - 3} lainnya...</div>`;
+    if (!scriptUrl) {
+        showNotification('URL Apps Script wajib diisi', 'error');
+        return;
     }
     
-    container.innerHTML = html;
+    // Save to config
+    AppState.config.scriptUrl = scriptUrl;
+    AppState.config.spreadsheetId = spreadsheetId;
+    
+    // Save to localStorage
+    localStorage.setItem('zeta_script_url', scriptUrl);
+    localStorage.setItem('zeta_spreadsheet_id', spreadsheetId);
+    
+    // Test connection
+    testConnection();
+    
+    showSettingsModal(false);
+    showNotification('Pengaturan disimpan', 'success');
+    addActivityLog('Pengaturan sistem diperbarui', 'info');
+}
+
+// ===== SUCCESS MODAL =====
+
+function showSuccessModal(show, transactionData = null) {
+    if (show && transactionData) {
+        Elements.successTotal.textContent = formatRupiah(transactionData.total);
+        Elements.successCash.textContent = formatRupiah(transactionData.cash_received);
+        Elements.successChange.textContent = formatRupiah(transactionData.change);
+        Elements.successId.textContent = transactionData.transaction_id;
+        
+        Elements.successModal.classList.add('active');
+    } else {
+        Elements.successModal.classList.remove('active');
+    }
 }
 
 // ===== UTILITIES =====
+
+function formatRupiah(amount) {
+    return 'Rp ' + amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function updateUI() {
+    updateOrderDisplay();
+    updateOrderSummary();
+    updateConnectionStatus(AppState.isOnline);
+}
+
 function updateConnectionStatus(online) {
-    const statusElement = document.getElementById('connection-status');
-    const syncBtn = document.getElementById('btn-sync-now');
+    const indicator = Elements.connectionStatus.querySelector('.status-indicator');
+    const text = Elements.connectionStatus.querySelector('span');
     
     if (online) {
-        statusElement.className = 'status online';
-        statusElement.innerHTML = '<i class="fas fa-wifi"></i> ONLINE';
-        syncBtn.disabled = false;
+        indicator.className = 'status-indicator online';
+        text.textContent = 'Terhubung';
+        AppState.isOnline = true;
     } else {
-        statusElement.className = 'status offline';
-        statusElement.innerHTML = '<i class="fas fa-wifi-slash"></i> OFFLINE';
-        syncBtn.disabled = true;
+        indicator.className = 'status-indicator offline';
+        text.textContent = 'Offline';
+        AppState.isOnline = false;
     }
 }
 
-function updateSyncStatus(success) {
-    const syncElement = document.getElementById('last-sync');
-    const now = new Date();
+function updateSyncStatus(online, message) {
+    Elements.syncStatus.textContent = `Sinkronisasi: ${online ? 'Online' : 'Offline'}`;
+    Elements.lastSync.textContent = new Date().toLocaleTimeString('id-ID');
     
-    syncElement.textContent = success 
-        ? `Terakhir sync: ${now.toLocaleTimeString('id-ID')}`
-        : `Sync gagal: ${now.toLocaleTimeString('id-ID')}`;
-    
-    syncElement.className = success ? 'sync-success' : 'sync-failed';
+    if (!online && message) {
+        addActivityLog(message, 'warning');
+    }
 }
 
-function addLog(message, type = 'info') {
-    const logContainer = document.getElementById('activity-log');
-    if (!logContainer) return;
-    
+function addActivityLog(message, type = 'info') {
     const time = new Date().toLocaleTimeString('id-ID', { hour12: false });
     const logEntry = document.createElement('div');
-    logEntry.className = `log-entry ${type}`;
+    logEntry.className = 'log-item';
     logEntry.innerHTML = `
         <span class="log-time">${time}</span>
         <span class="log-message">${message}</span>
     `;
     
-    logContainer.prepend(logEntry);
+    Elements.activityLog.prepend(logEntry);
     
     // Keep only last 10 logs
-    const logs = logContainer.querySelectorAll('.log-entry');
+    const logs = Elements.activityLog.querySelectorAll('.log-item');
     if (logs.length > 10) {
         for (let i = 10; i < logs.length; i++) {
             logs[i].remove();
@@ -658,152 +860,62 @@ function addLog(message, type = 'info') {
     }
 }
 
-function showAlert(message, type) {
-    const alertDiv = document.getElementById('alert-message');
-    alertDiv.textContent = message;
-    alertDiv.className = `alert ${type}`;
-    alertDiv.style.display = 'block';
+function showNotification(message, type = 'info') {
+    const container = document.getElementById('notificationContainer');
+    if (!container) return;
     
+    const icons = {
+        success: 'fa-check-circle',
+        error: 'fa-exclamation-circle',
+        warning: 'fa-exclamation-triangle',
+        info: 'fa-info-circle'
+    };
+    
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <div class="notification-icon">
+            <i class="fas ${icons[type]}"></i>
+        </div>
+        <div class="notification-content">
+            <div class="notification-message">${message}</div>
+        </div>
+        <button class="notification-close">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    container.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
     setTimeout(() => {
-        alertDiv.style.display = 'none';
-    }, 3000);
-}
-
-function showProcessing(show) {
-    const overlay = document.getElementById('processing-overlay');
-    overlay.style.display = show ? 'flex' : 'none';
-}
-
-function saveState() {
-    try {
-        localStorage.setItem('zeta_pos_state', JSON.stringify({
-            orderItems: state.orderItems,
-            syncQueue: state.syncQueue
-        }));
-    } catch (e) {
-        console.error("Error saving state:", e);
-    }
-}
-
-function saveToHistory(transaction, status) {
-    try {
-        const history = JSON.parse(localStorage.getItem('zeta_history') || '[]');
-        history.push({
-            ...transaction,
-            saved_at: new Date().toISOString(),
-            save_status: status
-        });
-        
-        // Keep only last 100
-        if (history.length > 100) {
-            history.splice(0, history.length - 100);
-        }
-        
-        localStorage.setItem('zeta_history', JSON.stringify(history));
-    } catch (e) {
-        console.error("Error saving to history:", e);
-    }
-}
-
-function formatRupiah(amount) {
-    return 'Rp' + amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-}
-
-function formatNumber(num) {
-    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-}
-
-// ===== CONFIGURATION =====
-function openConfig() {
-    document.getElementById('config-modal').style.display = 'flex';
-}
-
-function closeConfig() {
-    document.getElementById('config-modal').style.display = 'none';
-}
-
-async function testConfig() {
-    const url = document.getElementById('config-url').value.trim();
+        notification.style.animation = 'notificationSlideIn 0.3s ease reverse';
+        setTimeout(() => notification.remove(), 300);
+    }, 5000);
     
-    if (!url) {
-        showAlert('Masukkan URL terlebih dahulu!', 'error');
-        return;
-    }
-    
-    showProcessing(true);
-    
-    try {
-        const testUrl = `${url}?action=ping&t=${Date.now()}`;
-        const response = await fetch(testUrl);
-        const data = await response.json();
-        
-        if (data.status === 'alive') {
-            showAlert('✅ Koneksi berhasil!', 'success');
-        } else {
-            showAlert('❌ Koneksi gagal!', 'error');
-        }
-    } catch (error) {
-        showAlert('❌ Koneksi gagal! Periksa URL dan koneksi internet.', 'error');
-    } finally {
-        showProcessing(false);
-    }
-}
-
-function saveConfig() {
-    const url = document.getElementById('config-url').value.trim();
-    const sheetId = document.getElementById('config-sheet-id').value.trim();
-    
-    if (!url) {
-        showAlert('URL Apps Script wajib diisi!', 'error');
-        return;
-    }
-    
-    // Save to config
-    CONFIG.APPS_SCRIPT_URL = url;
-    localStorage.setItem('zeta_script_url', url);
-    localStorage.setItem('zeta_sheet_id', sheetId);
-    
-    // Restart sync
-    realTimeSync.stop();
-    startRealTimeSync();
-    
-    closeConfig();
-    showAlert('✅ Konfigurasi disimpan!', 'success');
+    // Close button
+    notification.querySelector('.notification-close').addEventListener('click', () => {
+        notification.remove();
+    });
 }
 
 function openDashboard() {
-    window.open('admin.html', '_blank');
+    window.open('dashboard.html', '_blank');
 }
 
-// ===== GLOBAL FUNCTIONS =====
+function quickSale() {
+    // Quick sale: Nasi Daun Jeruk x1
+    addOrderItem('nasi-dasar', 1);
+    showNotification('Quick sale: Nasi Daun Jeruk ditambahkan', 'info');
+}
+
+function printReceipt() {
+    window.print();
+}
+
+// Make functions available globally
+window.showSettingsModal = showSettingsModal;
+window.testConnection = testConnection;
+window.saveSettings = saveSettings;
 window.adjustQuantity = adjustQuantity;
-window.removeItem = removeItem;
-window.openConfig = openConfig;
-window.closeConfig = closeConfig;
-window.testConfig = testConfig;
-window.saveConfig = saveConfig;
-
-// State update listener
-function onStateUpdate(newState) {
-    // Update display based on state changes
-    updateQueueDisplay();
-    updateRealTimeDisplay();
-}
-async function saveToGoogleSheets(transactionData) {
-    console.log("📤 Attempting to save to Google Sheets...");
-    
-    if (!CONFIG.APPS_SCRIPT_URL) {
-        console.error("❌ No Apps Script URL configured");
-        return false;
-    }
-    
-    // Ensure data has required fields
-    const dataToSend = {
-        ...transactionData,
-        timestamp: new Date().toISOString(),
-        transaction_id: transactionData.transaction_id || 'T' + Date.now() + Math.random().toString(36).substr(2, 9)
-    };
-    
-    console.log("📦 Data to send:", dataToSend);
-    
-};
+window.removeOrderItem = removeOrderItem;
