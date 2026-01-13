@@ -3,546 +3,233 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🍃 Nasi Daun Jeruk POS | Kasir Modern</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>Kasir Nasi Daun Jeruk</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" type="image/x-icon" href="assets/images/logo.png">
-    
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2E7D32" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#1B5E20" media="(prefers-color-scheme: dark)">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    
-    <style>
-        /* Inline critical CSS for faster loading */
-        :root {
-            --primary: #2E7D32;
-            --primary-light: #4CAF50;
-            --primary-dark: #1B5E20;
-            --secondary: #FF9800;
-            --dark-bg: #121212;
-            --dark-surface: #1E1E1E;
-            --dark-text: #E0E0E0;
-            --light-bg: #F5F7FA;
-            --light-surface: #FFFFFF;
-            --light-text: #333333;
-        }
-        
-        body {
-            margin: 0;
-            padding: 0;
-            transition: background-color 0.3s ease;
-            min-height: 100vh;
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/x-icon" href="assets/logo.png">
 </head>
-<body data-theme="light">
-    <!-- Loading Screen -->
-    <div id="loadingScreen" class="loading-screen">
-        <div class="loading-content">
-            <div class="loading-logo">
-                <i class="fas fa-leaf"></i>
-                <i class="fas fa-cash-register"></i>
-            </div>
-            <h2>Nasi Daun Jeruk POS</h2>
-            <p>Memuat sistem kasir...</p>
-            <div class="loading-bar">
-                <div class="loading-progress"></div>
-            </div>
-        </div>
-    </div>
-
+<body>
     <!-- Header -->
     <header class="header">
-        <div class="header-left">
-            <div class="logo">
-                <div class="logo-icon">
-                    <i class="fas fa-leaf"></i>
-                    <i class="fas fa-cash-register"></i>
-                </div>
-                <div class="logo-text">
-                    <h1>Nasi Daun Jeruk <span class="pos-badge">POS v2</span></h1>
-                    <p class="subtitle">Sistem Kasir Modern • QRIS Ready</p>
-                </div>
+        <div class="container">
+            <div class="logo-container">
+                <img src="assets/logo.png" alt="Logo Nasi Daun Jeruk" class="logo">
+                <h1>Kasir Nasi Daun Jeruk</h1>
             </div>
-        </div>
-        
-        <div class="header-right">
-            <div class="datetime-display">
-                <i class="fas fa-clock"></i>
-                <span id="currentDateTime">Loading...</span>
-            </div>
-            
-            <div class="header-controls">
-                <button class="btn-icon" id="themeToggle" title="Ubah tema">
-                    <i class="fas fa-moon"></i>
+            <div class="header-actions">
+                <button id="viewBackup" class="btn-secondary">
+                    <i class="fas fa-history"></i> Backup Transaksi
                 </button>
-                
-                <button class="btn-icon" id="fullscreenToggle" title="Layar penuh">
-                    <i class="fas fa-expand"></i>
+                <button id="clearCart" class="btn-danger">
+                    <i class="fas fa-trash"></i> Reset Transaksi
                 </button>
-                
-                <a href="backup.html" class="btn-backup" title="Backup transaksi">
-                    <i class="fas fa-database"></i>
-                    <span class="btn-text">Backup</span>
-                </a>
-                
-                <div class="quick-stats">
-                    <div class="stat-item">
-                        <i class="fas fa-shopping-cart"></i>
-                        <span id="cartCount">0</span>
-                    </div>
-                    <div class="stat-item">
-                        <i class="fas fa-money-bill-wave"></i>
-                        <span id="cartTotal">0</span>
-                    </div>
-                </div>
             </div>
         </div>
     </header>
 
-    <!-- Main Container -->
-    <main class="main-container">
-        <!-- Left Panel: Menu Selection -->
-        <section class="panel menu-panel">
-            <div class="panel-header">
-                <h2><i class="fas fa-utensils"></i> Menu & Harga</h2>
-                <div class="panel-controls">
-                    <button class="btn-small" id="resetMenu">
-                        <i class="fas fa-redo"></i> Reset
+    <main class="container main-container">
+        <!-- Menu Section -->
+        <section class="menu-section">
+            <h2><i class="fas fa-utensils"></i> Menu Nasi Daun Jeruk</h2>
+            <div class="menu-grid">
+                <!-- Nasi Daun Jeruk Biasa -->
+                <div class="menu-card" data-id="1" data-price="10000">
+                    <div class="menu-header">
+                        <h3>Nasi Daun Jeruk Biasa</h3>
+                        <span class="price">Rp10.000</span>
+                    </div>
+                    <p class="menu-desc">Pilih 1 topping:</p>
+                    <div class="topping-options">
+                        <label class="radio-label">
+                            <input type="radio" name="topping_1" value="Kulit Ayam Crispy" checked>
+                            Kulit Ayam Crispy
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="topping_1" value="Ayam Suwir">
+                            Ayam Suwir
+                        </label>
+                    </div>
+                    <button class="btn-add-to-cart">
+                        <i class="fas fa-cart-plus"></i> Tambah ke Keranjang
                     </button>
                 </div>
-            </div>
-            
-            <div class="menu-categories">
-                <!-- Category Tabs -->
-                <div class="category-tabs">
-                    <button class="category-tab active" data-category="all">
-                        <i class="fas fa-th"></i> Semua
-                    </button>
-                    <button class="category-tab" data-category="nasi">
-                        <i class="fas fa-rice"></i> Nasi
-                    </button>
-                    <button class="category-tab" data-category="minuman">
-                        <i class="fas fa-glass-whiskey"></i> Minuman
+
+                <!-- Paket Lengkap -->
+                <div class="menu-card" data-id="2" data-price="12000">
+                    <div class="menu-header">
+                        <h3>Paket Lengkap</h3>
+                        <span class="price">Rp12.000</span>
+                    </div>
+                    <p class="menu-desc">Nasi + Kulit Ayam Crispy + Ayam Suwir</p>
+                    <button class="btn-add-to-cart">
+                        <i class="fas fa-cart-plus"></i> Tambah ke Keranjang
                     </button>
                 </div>
-                
-                <!-- Menu Grid -->
-                <div class="menu-grid">
-                    <!-- Item 1: Nasi Biasa -->
-                    <div class="menu-item" data-id="1" data-price="10000" data-category="nasi">
-                        <div class="menu-item-badge">BEST</div>
-                        <div class="menu-item-icon">
-                            <i class="fas fa-rice"></i>
-                        </div>
-                        <div class="menu-item-content">
-                            <h3>Nasi Daun Jeruk Biasa</h3>
-                            <p class="menu-description">Pilih 1 topping favorit</p>
-                            <div class="topping-selection">
-                                <label class="topping-option">
-                                    <input type="radio" name="topping_1" value="kulit" checked>
-                                    <span class="topping-name">Kulit Ayam Crispy</span>
-                                </label>
-                                <label class="topping-option">
-                                    <input type="radio" name="topping_1" value="suwir">
-                                    <span class="topping-name">Ayam Suwir</span>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="menu-item-footer">
-                            <div class="menu-price">Rp 10.000</div>
-                            <button class="btn-add-to-cart" onclick="addToCart(1)">
-                                <i class="fas fa-plus"></i> Tambah
-                            </button>
-                        </div>
+
+                <!-- Paket Hemat -->
+                <div class="menu-card" data-id="3" data-price="13000">
+                    <div class="menu-header">
+                        <h3>Paket Hemat</h3>
+                        <span class="price">Rp13.000</span>
                     </div>
-                    
-                    <!-- Item 2: Paket Lengkap -->
-                    <div class="menu-item" data-id="2" data-price="12000" data-category="nasi">
-                        <div class="menu-item-badge premium">PREMIUM</div>
-                        <div class="menu-item-icon">
-                            <i class="fas fa-crown"></i>
-                        </div>
-                        <div class="menu-item-content">
-                            <h3>Paket Lengkap</h3>
-                            <p class="menu-description">Nasi + Kulit + Suwir + Lalapan</p>
-                        </div>
-                        <div class="menu-item-footer">
-                            <div class="menu-price">Rp 12.000</div>
-                            <button class="btn-add-to-cart" onclick="addToCart(2)">
-                                <i class="fas fa-plus"></i> Tambah
-                            </button>
-                        </div>
+                    <p class="menu-desc">Nasi Daun Jeruk + 1 Toping + Es Jeruk Peras</p>
+                    <button class="btn-add-to-cart">
+                        <i class="fas fa-cart-plus"></i> Tambah ke Keranjang
+                    </button>
+                </div>
+
+                <!-- Es Jeruk Peras -->
+                <div class="menu-card" data-id="4" data-price="5000">
+                    <div class="menu-header">
+                        <h3>Es Jeruk Peras</h3>
+                        <span class="price">Rp5.000</span>
                     </div>
-                    
-                    <!-- Item 3: Paket Hemat -->
-                    <div class="menu-item" data-id="3" data-price="13000" data-category="nasi">
-                        <div class="menu-item-badge economy">HEMAT</div>
-                        <div class="menu-item-icon">
-                            <i class="fas fa-piggy-bank"></i>
-                        </div>
-                        <div class="menu-item-content">
-                            <h3>Paket Hemat</h3>
-                            <p class="menu-description">Nasi + Es Jeruk Peras</p>
-                        </div>
-                        <div class="menu-item-footer">
-                            <div class="menu-price">Rp 13.000</div>
-                            <button class="btn-add-to-cart" onclick="addToCart(3)">
-                                <i class="fas fa-plus"></i> Tambah
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Item 4: Es Jeruk Peras -->
-                    <div class="menu-item" data-id="4" data-price="5000" data-category="minuman">
-                        <div class="menu-item-icon">
-                            <i class="fas fa-glass-whiskey"></i>
-                        </div>
-                        <div class="menu-item-content">
-                            <h3>Es Jeruk Peras</h3>
-                            <p class="menu-description">Minuman segar asli perasan</p>
-                        </div>
-                        <div class="menu-item-footer">
-                            <div class="menu-price">Rp 5.000</div>
-                            <button class="btn-add-to-cart" onclick="addToCart(4)">
-                                <i class="fas fa-plus"></i> Tambah
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Item 5: Nasi + Es Jeruk Double -->
-                    <div class="menu-item" data-id="5" data-price="15000" data-category="nasi">
-                        <div class="menu-item-badge">SPECIAL</div>
-                        <div class="menu-item-icon">
-                            <i class="fas fa-star"></i>
-                        </div>
-                        <div class="menu-item-content">
-                            <h3>Paket Komplit</h3>
-                            <p class="menu-description">Nasi + Kulit + Es Jeruk Double</p>
-                        </div>
-                        <div class="menu-item-footer">
-                            <div class="menu-price">Rp 15.000</div>
-                            <button class="btn-add-to-cart" onclick="addToCart(5)">
-                                <i class="fas fa-plus"></i> Tambah
-                            </button>
-                        </div>
-                    </div>
+                    <p class="menu-desc">Minuman segar jeruk peras</p>
+                    <button class="btn-add-to-cart">
+                        <i class="fas fa-cart-plus"></i> Tambah ke Keranjang
+                    </button>
                 </div>
             </div>
         </section>
 
-        <!-- Right Panel: Cart & Payment -->
-        <section class="panel cart-panel">
+        <!-- Cart & Payment Section -->
+        <div class="cart-payment-container">
             <!-- Cart Section -->
-            <div class="cart-section">
-                <div class="cart-header">
-                    <h2><i class="fas fa-shopping-cart"></i> Keranjang Pesanan</h2>
-                    <button class="btn-clear-cart" onclick="clearCart()">
-                        <i class="fas fa-trash"></i> Kosongkan
-                    </button>
-                </div>
-                
-                <div class="cart-items-container" id="cartItems">
-                    <div class="empty-cart-state">
+            <section class="cart-section">
+                <h2><i class="fas fa-shopping-cart"></i> Keranjang Pesanan</h2>
+                <div class="cart-items" id="cartItems">
+                    <div class="empty-cart">
                         <i class="fas fa-shopping-basket"></i>
-                        <h3>Keranjang Kosong</h3>
-                        <p>Tambahkan menu dari panel kiri</p>
+                        <p>Keranjang masih kosong</p>
                     </div>
                 </div>
-                
                 <div class="cart-summary">
                     <div class="summary-row">
-                        <span>Subtotal:</span>
-                        <span id="subtotalAmount">Rp 0</span>
+                        <span>Total Item:</span>
+                        <span id="totalItems">0</span>
                     </div>
                     <div class="summary-row">
-                        <span>PPN (0%):</span>
-                        <span>Rp 0</span>
-                    </div>
-                    <div class="summary-row total">
-                        <span><strong>Total Pembayaran:</strong></span>
-                        <span class="total-amount" id="totalAmount">Rp 0</span>
+                        <span>Total Harga:</span>
+                        <span id="totalPrice" class="total-price">Rp0</span>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- Payment Method -->
-            <div class="payment-section">
-                <div class="payment-header">
-                    <h2><i class="fas fa-credit-card"></i> Metode Pembayaran</h2>
-                </div>
+            <!-- Payment Section -->
+            <section class="payment-section">
+                <h2><i class="fas fa-credit-card"></i> Pembayaran</h2>
                 
-                <div class="payment-methods">
-                    <div class="payment-method-selector">
-                        <label class="payment-method-option active" data-method="cash">
-                            <input type="radio" name="paymentMethod" value="cash" checked>
-                            <div class="method-icon">
-                                <i class="fas fa-money-bill-wave"></i>
-                            </div>
-                            <div class="method-info">
-                                <h4>Tunai (Cash)</h4>
-                                <p>Bayar dengan uang fisik</p>
-                            </div>
-                            <div class="method-check">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
-                        </label>
-                        
-                        <label class="payment-method-option" data-method="qris">
-                            <input type="radio" name="paymentMethod" value="qris">
-                            <div class="method-icon">
-                                <i class="fas fa-qrcode"></i>
-                            </div>
-                            <div class="method-info">
-                                <h4>QRIS Digital</h4>
-                                <p>GoPay, DANA, OVO, ShopeePay</p>
-                            </div>
-                            <div class="method-check">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
-                        </label>
-                    </div>
-                    
-                    <!-- Cash Payment -->
-                    <div class="cash-payment" id="cashPayment">
-                        <h3><i class="fas fa-calculator"></i> Pembayaran Tunai</h3>
-                        <div class="cash-input-group">
-                            <label>Uang yang Dibayarkan:</label>
-                            <div class="input-with-prefix">
-                                <span class="input-prefix">Rp</span>
-                                <input type="number" 
-                                       id="cashAmount" 
-                                       min="0" 
-                                       placeholder="Masukkan jumlah"
-                                       oninput="calculateChange()">
-                            </div>
-                        </div>
-                        
-                        <div class="change-display">
-                            <div class="change-row">
-                                <span>Kembalian:</span>
-                                <span class="change-amount" id="changeAmount">Rp 0</span>
-                            </div>
-                            <div class="validation-message" id="cashValidation">
-                                <i class="fas fa-info-circle"></i>
-                                <span>Masukkan jumlah uang</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- QRIS Payment -->
-                    <div class="qris-payment" id="qrisPayment" style="display: none;">
-                        <div class="qris-header">
-                            <div class="qris-merchant">
-                                <h3><i class="fas fa-store"></i> Nasi Daun Jeruk POS</h3>
-                                <p>Merchant ID: NDJ-2024-POS</p>
-                            </div>
-                            <div class="qris-amount">
-                                <small>Total Pembayaran</small>
-                                <div class="amount-display" id="qrisAmountDisplay">Rp 0</div>
-                            </div>
-                        </div>
-                        
-                        <div class="qris-container">
-                            <!-- QR Code Display -->
-                            <div class="qris-code-wrapper">
-                                <div class="qris-code" id="qrisCode">
-                                    <div class="qris-placeholder">
-                                        <div class="qris-logo">
-                                            <i class="fas fa-qrcode"></i>
-                                        </div>
-                                        <p>QR Code akan muncul setelah item ditambahkan</p>
-                                        <small>Supported: GoPay, DANA, OVO, ShopeePay</small>
-                                    </div>
-                                </div>
-                                
-                                <!-- E-Wallet Logos -->
-                                <div class="ewallet-logos">
-                                    <div class="ewallet-logo">
-                                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/GoPay.svg/1200px-GoPay.svg.png" alt="GoPay">
-                                        <span>GoPay</span>
-                                    </div>
-                                    <div class="ewallet-logo">
-                                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Logo_dana_blue.svg/2560px-Logo_dana_blue.svg.png" alt="DANA">
-                                        <span>DANA</span>
-                                    </div>
-                                    <div class="ewallet-logo">
-                                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/OVO_logo.svg/2560px-OVO_logo.svg.png" alt="OVO">
-                                        <span>OVO</span>
-                                    </div>
-                                    <div class="ewallet-logo">
-                                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/ShopeePay_logo.svg/2560px-ShopeePay_logo.svg.png" alt="ShopeePay">
-                                        <span>ShopeePay</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="qris-instructions">
-                                <h4><i class="fas fa-info-circle"></i> Cara Bayar:</h4>
-                                <ol>
-                                    <li>Buka aplikasi e-wallet (GoPay/DANA/OVO/ShopeePay)</li>
-                                    <li>Pilih fitur <strong>Scan QRIS</strong></li>
-                                    <li>Arahkan kamera ke QR Code di atas</li>
-                                    <li>Konfirmasi pembayaran sesuai jumlah</li>
-                                    <li>Tunggu notifikasi sukses</li>
-                                </ol>
-                            </div>
-                        </div>
-                        
-                        <div class="qris-controls">
-                            <button class="btn-qris-success" onclick="simulateQRISPayment()">
-                                <i class="fas fa-check-circle"></i> Simulasi Bayar Berhasil
-                            </button>
-                            <button class="btn-qris-cancel" onclick="cancelQRISPayment()">
-                                <i class="fas fa-times-circle"></i> Batalkan
-                            </button>
-                        </div>
+                <!-- Payment Method Selection -->
+                <div class="payment-method">
+                    <h3>Pilih Metode Pembayaran:</h3>
+                    <div class="method-buttons">
+                        <button id="cashBtn" class="method-btn active">
+                            <i class="fas fa-money-bill-wave"></i> Tunai
+                        </button>
+                        <button id="qrisBtn" class="method-btn">
+                            <i class="fas fa-qrcode"></i> QRIS
+                        </button>
                     </div>
                 </div>
-                
-                <!-- Action Buttons -->
-                <div class="action-buttons">
-                    <button class="btn-process" id="processTransaction" onclick="processTransaction()" disabled>
-                        <i class="fas fa-paper-plane"></i> PROSES TRANSAKSI
+
+                <!-- Cash Payment -->
+                <div id="cashPayment" class="payment-form active">
+                    <div class="input-group">
+                        <label>Uang yang Dibayarkan:</label>
+                        <input type="number" id="cashAmount" placeholder="Masukkan jumlah uang" min="0">
+                    </div>
+                    <div class="calculation-result">
+                        <div class="result-row">
+                            <span>Total:</span>
+                            <span id="cashTotal">Rp0</span>
+                        </div>
+                        <div class="result-row">
+                            <span>Uang Bayar:</span>
+                            <span id="cashPaid">Rp0</span>
+                        </div>
+                        <div class="result-row highlight">
+                            <span>Kembalian:</span>
+                            <span id="cashChange">Rp0</span>
+                        </div>
+                    </div>
+                    <button id="processCash" class="btn-success" disabled>
+                        <i class="fas fa-check-circle"></i> Proses Transaksi Tunai
                     </button>
-                    
-                    <div class="secondary-actions">
-                        <button class="btn-secondary" onclick="printReceipt()">
-                            <i class="fas fa-print"></i> Cetak Struk
-                        </button>
-                        <button class="btn-secondary" onclick="saveTransaction()">
-                            <i class="fas fa-save"></i> Simpan Draft
-                        </button>
-                        <button class="btn-secondary btn-cancel" onclick="cancelTransaction()">
-                            <i class="fas fa-times"></i> Batal
-                        </button>
+                    <p class="validation-message" id="cashValidation"></p>
+                </div>
+
+                <!-- QRIS Payment -->
+                <div id="qrisPayment" class="payment-form">
+                    <div class="qris-info">
+                        <h3>Scan QRIS untuk Bayar:</h3>
+                        <div class="qris-logos">
+                            <img src="assets/gopay-logo.png" alt="GoPay" class="qris-logo">
+                            <img src="assets/dana-logo.png" alt="DANA" class="qris-logo">
+                        </div>
+                        <div class="qris-container">
+                            <canvas id="qrisCanvas"></canvas>
+                        </div>
+                        <p class="qris-instruction">
+                            <i class="fas fa-info-circle"></i>
+                            Scan QR di atas dengan aplikasi GoPay, DANA, atau bank Anda
+                        </p>
+                        <div class="qris-actions">
+                            <button id="completeQris" class="btn-success">
+                                <i class="fas fa-check"></i> Pembayaran Selesai
+                            </button>
+                            <button id="cancelQris" class="btn-danger">
+                                <i class="fas fa-times"></i> Batalkan Pembayaran
+                            </button>
+                        </div>
+                        <div class="qris-status" id="qrisStatus">
+                            <i class="fas fa-clock"></i> Menunggu pembayaran...
+                        </div>
                     </div>
                 </div>
-            </div>
-        </section>
+            </section>
+        </div>
     </main>
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="footer-content">
-            <div class="footer-left">
-                <div class="footer-logo">
-                    <i class="fas fa-leaf"></i>
-                    <span>Nasi Daun Jeruk POS</span>
-                </div>
-                <p class="footer-copyright">
-                    © 2024 Sistem Kasir Modern • Versi 2.0 • Untuk Market Day Sekolah
-                </p>
-            </div>
-            
-            <div class="footer-right">
-                <div class="footer-stats">
-                    <div class="footer-stat">
-                        <i class="fas fa-exchange-alt"></i>
-                        <div>
-                            <div class="stat-label">Transaksi Hari Ini</div>
-                            <div class="stat-value" id="todayTransactionCount">0</div>
-                        </div>
-                    </div>
-                    <div class="footer-stat">
-                        <i class="fas fa-money-bill-wave"></i>
-                        <div>
-                            <div class="stat-label">Pemasukan</div>
-                            <div class="stat-value" id="todayIncome">Rp 0</div>
-                        </div>
-                    </div>
-                    <div class="footer-stat">
-                        <i class="fas fa-database"></i>
-                        <div>
-                            <div class="stat-label">Data Tersimpan</div>
-                            <div class="stat-value" id="totalTransactions">0</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </footer>
-
-    <!-- Modals & Notifications -->
-    <div class="modal-overlay" id="successModal" style="display: none;">
-        <div class="modal">
-            <div class="modal-header success">
-                <i class="fas fa-check-circle"></i>
-                <h3>Transaksi Berhasil! 🎉</h3>
+    <!-- Transaction Receipt Modal -->
+    <div id="receiptModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-receipt"></i> Struk Transaksi</h2>
+                <button class="close-modal">&times;</button>
             </div>
             <div class="modal-body">
-                <p id="successMessage">Transaksi telah diproses dan disimpan ke database.</p>
-                <div class="transaction-details" id="transactionDetails">
-                    <!-- Details will be populated here -->
-                </div>
+                <div id="receiptContent"></div>
             </div>
             <div class="modal-footer">
-                <button class="btn-modal-secondary" onclick="closeModal()">
+                <button id="printReceipt" class="btn-primary">
+                    <i class="fas fa-print"></i> Cetak Struk
+                </button>
+                <button id="closeReceipt" class="btn-secondary">
                     <i class="fas fa-times"></i> Tutup
                 </button>
-                <button class="btn-modal-primary" onclick="newTransaction()">
-                    <i class="fas fa-plus"></i> Transaksi Baru
-                </button>
             </div>
         </div>
     </div>
 
-    <div class="modal-overlay" id="alertModal" style="display: none;">
-        <div class="modal">
-            <div class="modal-header warning">
-                <i class="fas fa-exclamation-triangle"></i>
-                <h3 id="alertTitle">Peringatan</h3>
-            </div>
-            <div class="modal-body">
-                <p id="alertMessage"></p>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-modal-primary" onclick="closeAlert()">
-                    <i class="fas fa-check"></i> Mengerti
-                </button>
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content confirm-modal">
+            <h3 id="confirmMessage"></h3>
+            <div class="confirm-buttons">
+                <button id="confirmYes" class="btn-danger">Ya, Hapus</button>
+                <button id="confirmNo" class="btn-secondary">Batal</button>
             </div>
         </div>
     </div>
 
-    <!-- Toast Notification -->
-    <div class="toast-container">
-        <div class="toast" id="toastNotification">
-            <div class="toast-icon">
-                <i class="fas fa-check"></i>
-            </div>
-            <div class="toast-content">
-                <div class="toast-title" id="toastTitle">Berhasil</div>
-                <div class="toast-message" id="toastMessage">Operasi berhasil dilakukan</div>
-            </div>
-            <button class="toast-close" onclick="hideToast()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
+    <!-- Success Notification -->
+    <div id="successToast" class="toast success">
+        <i class="fas fa-check-circle"></i>
+        <span id="successMessage">Transaksi berhasil!</span>
     </div>
 
-    <!-- Audio for notifications -->
-    <audio id="cashSound" preload="auto">
-        <source src="https://assets.mixkit.co/sfx/preview/mixkit-cash-register-purchase-875.mp3" type="audio/mpeg">
-    </audio>
-    <audio id="successSound" preload="auto">
-        <source src="https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3" type="audio/mpeg">
-    </audio>
-
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="qris-simulator.js"></script>
     <script src="app.js"></script>
-    
-    <script>
-        // Preload critical functions
-        window.addEventListener('load', function() {
-            setTimeout(() => {
-                document.getElementById('loadingScreen').style.display = 'none';
-                showToast('Sistem siap digunakan!', 'success');
-            }, 1000);
-        });
-    </script>
 </body>
 </html>
